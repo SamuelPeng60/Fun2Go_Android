@@ -47,8 +47,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val markerSpotMap = HashMap<Marker, Spot>()
     private var selectedCategory = "all"
 
-    // 使用者已儲存的地標
+    // 使用者已儲存的地標（從 Room 初始載入後由 in-memory 維護）
     private val savedSpots = mutableListOf<Spot>()
+    private var hasLoadedFromDb = false
+    private var savedListAdapter: SavedSpotAdapter? = null
 
     // 分類對應表
     private val categoryMap = linkedMapOf(
@@ -217,10 +219,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnAdd.setOnClickListener {
             if (savedSpots.any { it.id == spot.id }) {
                 savedSpots.removeAll { it.id == spot.id }
+                viewModel.removeSavedSpot(spot.id)
             } else {
                 savedSpots.add(spot)
+                viewModel.addSavedSpot(spot)
             }
             syncButton()
+            savedListAdapter?.notifyDataSetChanged()
         }
 
         dialog.setContentView(view)
@@ -244,22 +249,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        val adapter = SavedSpotAdapter(
+        savedListAdapter = SavedSpotAdapter(
             savedSpots,
             { cat -> categoryMap[cat] ?: cat ?: "景點" }
         ) { spot ->
             val pos = savedSpots.indexOfFirst { it.id == spot.id }
             if (pos != -1) {
                 savedSpots.removeAt(pos)
-                rv.adapter?.notifyItemRemoved(pos)
+                savedListAdapter?.notifyItemRemoved(pos)
+                viewModel.removeSavedSpot(spot.id)
                 refreshState()
             }
         }
 
         rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = adapter
+        rv.adapter = savedListAdapter
         refreshState()
 
+        dialog.setOnDismissListener { savedListAdapter = null }
         dialog.setContentView(view)
         dialog.show()
     }
@@ -268,6 +275,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun initViewModel() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+
+        // 從 Room 載入已儲存的地標（僅初始化一次）
+        viewModel.savedSpotsLiveData.observe(this) { entities ->
+            if (!hasLoadedFromDb) {
+                hasLoadedFromDb = true
+                savedSpots.addAll(entities.map { it.toSpot() })
+                savedListAdapter?.notifyDataSetChanged()
+            }
+        }
 
         viewModel.userResponse.observe(this) { response ->
             when (response) {

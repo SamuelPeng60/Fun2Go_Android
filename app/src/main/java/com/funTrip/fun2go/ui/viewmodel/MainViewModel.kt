@@ -1,17 +1,32 @@
 package com.funTrip.fun2go.ui.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.funTrip.fun2go.data.local.AppDatabase
+import com.funTrip.fun2go.data.local.toEntity
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TripRepository()
+
+    // ─── Room DB ───────────────────────────────────────────────
+    private val savedSpotDao = AppDatabase.getDatabase(application).savedSpotDao()
+    val savedSpotsLiveData = savedSpotDao.getAllSavedSpots()
+
+    fun addSavedSpot(spot: Spot) {
+        viewModelScope.launch { savedSpotDao.insert(spot.toEntity()) }
+    }
+
+    fun removeSavedSpot(spotId: Int) {
+        viewModelScope.launch { savedSpotDao.deleteById(spotId) }
+    }
 
     // --- 用戶 ---
     private val _userResponse = MutableLiveData<NetworkResult<User>>()
