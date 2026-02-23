@@ -2,90 +2,198 @@ package com.funTrip.fun2go.ui
 
 import android.os.Bundle
 import android.view.View
-import android.widget.*
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
+import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.remote.NetworkResult
-import com.funTrip.fun2go.ui.adapter.SpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.chip.Chip
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var viewModel: MainViewModel
-    private lateinit var spotAdapter: SpotAdapter
+    private lateinit var googleMap: GoogleMap
 
-    // UI Components
-    private lateinit var etSearch: EditText
-    private lateinit var btnSearch: Button
-    private lateinit var btnRefreshUser: ImageButton
+    // UI
     private lateinit var progressBar: ProgressBar
     private lateinit var tvWelcome: TextView
-    private lateinit var tvUserEmail: TextView
-    private lateinit var tvEmptyState: TextView
-    private lateinit var rvSpots: RecyclerView
+    private lateinit var ivUserAvatar: ImageView
+    private lateinit var btnRefreshUser: ImageButton
+    private lateinit var chipGroup: LinearLayout
+
+    // 地圖資料
+    private var allSpots: List<Spot> = emptyList()
+    private val markerSpotMap = HashMap<Marker, Spot>()
+    private var selectedCategory = "all"
+
+    // 分類對應表
+    private val categoryMap = linkedMapOf(
+        "all"         to "全部",
+        "attraction"  to "景點",
+        "restaurant"  to "餐廳",
+        "night_market" to "夜市",
+        "shopping"    to "購物",
+        "cafe"        to "咖啡廳"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         initViews()
-        initRecyclerView()
+        setupCategoryChips()
+
+        val mapFragment = supportFragmentManager
+            .findFragmentById(R.id.mapFragment) as SupportMapFragment
+        mapFragment.getMapAsync(this)
+
         initViewModel()
 
-        // 預設行為：抓取 ID = 1 的用戶資料
         viewModel.fetchUser(1)
+        viewModel.fetchAllSpots()
     }
 
     private fun initViews() {
-        etSearch = findViewById(R.id.etSearch)
-        btnSearch = findViewById(R.id.btnSearch)
+        progressBar   = findViewById(R.id.progressBar)
+        tvWelcome     = findViewById(R.id.tvWelcome)
+        ivUserAvatar  = findViewById(R.id.ivUserAvatar)
         btnRefreshUser = findViewById(R.id.btnRefreshUser)
-        progressBar = findViewById(R.id.progressBar)
-        tvWelcome = findViewById(R.id.tvWelcome)
-        tvUserEmail = findViewById(R.id.tvUserEmail)
-        tvEmptyState = findViewById(R.id.tvEmptyState)
-        rvSpots = findViewById(R.id.rvSpots)
+        chipGroup     = findViewById(R.id.chipGroup)
 
-        // 搜尋按鈕點擊事件
-        btnSearch.setOnClickListener {
-            val keyword = etSearch.text.toString()
-            if (keyword.isNotEmpty()) {
-                viewModel.searchSpots(keyword)
-                // 收起鍵盤 (可選)
-            } else {
-                Toast.makeText(this, "請輸入關鍵字", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // 重新整理用戶按鈕
         btnRefreshUser.setOnClickListener {
-            viewModel.fetchUser(1) // 模擬重抓 User 1
+            viewModel.fetchUser(1)
+        }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnListView)
+            .setOnClickListener {
+                Toast.makeText(this, "列表功能開發中", Toast.LENGTH_SHORT).show()
+            }
+
+        findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
+            .setOnClickListener {
+                Toast.makeText(this, "新增行程功能開發中", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun setupCategoryChips() {
+        categoryMap.forEach { (key, label) ->
+            val chip = Chip(this).apply {
+                text = label
+                isCheckable = true
+                isChecked = (key == "all")
+                chipCornerRadius = 48f
+                setTextColor(if (key == "all") getColor(android.R.color.white) else getColor(android.R.color.black))
+                setChipBackgroundColorResource(
+                    if (key == "all") android.R.color.holo_red_light else android.R.color.white
+                )
+                chipStrokeWidth = 1f
+                setChipStrokeColorResource(android.R.color.darker_gray)
+            }
+            chip.setOnClickListener {
+                // 更新所有 chip 樣式
+                for (i in 0 until chipGroup.childCount) {
+                    val c = chipGroup.getChildAt(i) as Chip
+                    val isSelected = c == chip
+                    c.setTextColor(getColor(if (isSelected) android.R.color.white else android.R.color.black))
+                    c.setChipBackgroundColorResource(
+                        if (isSelected) android.R.color.holo_red_light else android.R.color.white
+                    )
+                }
+                selectedCategory = key
+                filterAndPlaceMarkers()
+            }
+            chipGroup.addView(chip)
         }
     }
 
-    private fun initRecyclerView() {
-        spotAdapter = SpotAdapter()
-        rvSpots.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = spotAdapter
+    // ─── Google Maps ───────────────────────────────────────────
+
+    override fun onMapReady(map: GoogleMap) {
+        googleMap = map
+        googleMap.uiSettings.isZoomControlsEnabled = true
+
+        // 預設鏡頭：台灣中心
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(23.6978, 120.9605), 7f))
+
+        googleMap.setOnMarkerClickListener { marker ->
+            markerSpotMap[marker]?.let { showSpotBottomSheet(it) }
+            true
+        }
+
+        // 若景點已先載入則立即打點
+        if (allSpots.isNotEmpty()) filterAndPlaceMarkers()
+    }
+
+    private fun filterAndPlaceMarkers() {
+        val filtered = if (selectedCategory == "all") allSpots
+                       else allSpots.filter { it.category == selectedCategory }
+        placeMarkers(filtered)
+    }
+
+    private fun placeMarkers(spots: List<Spot>) {
+        if (!::googleMap.isInitialized) return
+        googleMap.clear()
+        markerSpotMap.clear()
+        spots.forEach { spot ->
+            val lat = spot.latitude?.toDoubleOrNull() ?: return@forEach
+            val lng = spot.longitude?.toDoubleOrNull() ?: return@forEach
+            val marker = googleMap.addMarker(
+                MarkerOptions()
+                    .position(LatLng(lat, lng))
+                    .title(spot.name)
+            )
+            marker?.let { markerSpotMap[it] = spot }
         }
     }
+
+    // ─── 景點詳情 BottomSheet ──────────────────────────────────
+
+    private fun showSpotBottomSheet(spot: Spot) {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_spot, null)
+
+        view.findViewById<TextView>(R.id.tvSpotName).text = spot.name
+        view.findViewById<Chip>(R.id.chipCategory).text =
+            categoryMap[spot.category] ?: spot.category ?: "景點"
+        view.findViewById<TextView>(R.id.tvSpotAddress).text =
+            spot.address ?: "無地址資訊"
+
+        val tvRating = view.findViewById<TextView>(R.id.tvSpotRating)
+        if (spot.rating != null) {
+            tvRating.text = "★ ${spot.rating}"
+            tvRating.visibility = View.VISIBLE
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    // ─── ViewModel Observers ──────────────────────────────────
 
     private fun initViewModel() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
-        // 1. 觀察用戶資料
         viewModel.userResponse.observe(this) { response ->
             when (response) {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    val user = response.data
-                    tvWelcome.text = "Hi, ${user?.name}"
-                    tvUserEmail.text = user?.email ?: "No Email"
+                    tvWelcome.text = response.data?.name ?: "遊客"
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
@@ -94,344 +202,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 2. 觀察搜尋結果
         viewModel.spotsResponse.observe(this) { response ->
             when (response) {
-                is NetworkResult.Loading -> {
-                    showLoading(true)
-                    tvEmptyState.visibility = View.GONE
-                }
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    val spots = response.data
-                    if (!spots.isNullOrEmpty()) {
-                        spotAdapter.submitList(spots)
-                        tvEmptyState.visibility = View.GONE
-                        rvSpots.visibility = View.VISIBLE
-                    } else {
-                        spotAdapter.submitList(emptyList())
-                        tvEmptyState.visibility = View.VISIBLE
-                        rvSpots.visibility = View.GONE
-                    }
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "搜尋失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 3. 建立用戶
-        viewModel.createUserResponse.observe(this) { response ->
-            when (response) {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    Toast.makeText(this, "建立用戶成功: ${response.data?.name}", Toast.LENGTH_SHORT).show()
+                    allSpots = response.data ?: emptyList()
+                    filterAndPlaceMarkers()
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "建立用戶失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 4. 更新用戶
-        viewModel.updateUserResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新用戶成功: ${response.data?.name}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新用戶失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 5. 用戶行程列表
-        viewModel.userItinerariesResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "用戶行程數: ${response.data?.size ?: 0}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "取得用戶行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 6. 用戶收藏列表
-        viewModel.userFavoritesResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "用戶收藏數: ${response.data?.size ?: 0}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "取得收藏失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 7. 公開行程列表
-        viewModel.itinerariesResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "行程列表共 ${response.data?.size ?: 0} 筆", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "取得行程列表失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 8. 建立行程
-        viewModel.createItineraryResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "建立行程成功: ${response.data?.title}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "建立行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 9. 更新行程
-        viewModel.updateItineraryResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新行程成功: ${response.data?.title}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 10. 刪除行程
-        viewModel.deleteItineraryResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "刪除行程成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "刪除行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 11. 複製行程
-        viewModel.copyItineraryResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "複製行程成功: ${response.data?.title}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "複製行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 12. 發布行程
-        viewModel.publishItineraryResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "發布行程成功: ${response.data?.title}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "發布行程失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 13. 新增行程天
-        viewModel.addDayResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "新增天數成功: 第 ${response.data?.day_number} 天", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "新增天數失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 14. 更新行程天
-        viewModel.updateDayResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新天數成功: 第 ${response.data?.day_number} 天", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新天數失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 15. 刪除行程天
-        viewModel.deleteDayResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "刪除天數成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "刪除天數失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 16. 新增景點到天
-        viewModel.addSpotToDayResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "新增景點成功: spot_id=${response.data?.spot_id}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "新增景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 17. 更新景點在天內
-        viewModel.updateSpotInDayResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新景點成功: spot_id=${response.data?.spot_id}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "更新景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 18. 移除景點
-        viewModel.removeSpotResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "移除景點成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "移除景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 19. 重新排序景點
-        viewModel.reorderSpotsResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "排序更新成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "排序更新失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 20. 景點詳情
-        viewModel.spotDetailResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "景點詳情: ${response.data?.name}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "取得景點詳情失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 21. 建立景點
-        viewModel.createSpotResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "建立景點成功: ${response.data?.name}", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "建立景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 22. 新增收藏
-        viewModel.favoriteResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "加入收藏成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "加入收藏失敗: ${response.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
-        // 23. 移除收藏
-        viewModel.unfavoriteResponse.observe(this) { response ->
-            when (response) {
-                is NetworkResult.Loading -> showLoading(true)
-                is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, "移除收藏成功", Toast.LENGTH_SHORT).show()
-                }
-                is NetworkResult.Error -> {
-                    showLoading(false)
-                    Toast.makeText(this, "移除收藏失敗: ${response.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "載入景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

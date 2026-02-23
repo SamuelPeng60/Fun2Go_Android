@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/white"
+    android:paddingBottom="32dp">
+
+    <!-- 拖曳把手 -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="16dp"
+        android:background="#DDDDDD" />
+
+    <!-- 景點名稱 -->
+    <TextView
+        android:id="@+id/tvSpotName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:text="景點名稱"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#222222" />
+
+    <!-- 分類 Chip -->
+    <com.google.android.material.chip.Chip
+        android:id="@+id/chipCategory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:text="類別"
+        android:clickable="false"
+        android:focusable="false"
+        app:chipBackgroundColor="#FFF0F3"
+        app:chipCornerRadius="16dp"
+        android:textColor="#F44062"
+        app:chipStrokeColor="#F44062"
+        app:chipStrokeWidth="1dp" />
+
+    <!-- 地址 -->
+    <TextView
+        android:id="@+id/tvSpotAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="14dp"
+        android:text="地址"
+        android:textSize="14sp"
+        android:textColor="#555555"
+        android:drawableStart="@android:drawable/ic_menu_mylocation"
+        android:drawablePadding="6dp" />
+
+    <!-- 評分（有值才顯示） -->
+    <TextView
+        android:id="@+id/tvSpotRating"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="8dp"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:visibility="gone" />
+
+</LinearLayout>

@@ -94,6 +94,10 @@ class TripRepository : BaseRepository() {
 
     // --- Spots ---
 
+    suspend fun getAllSpots() = safeApiCall {
+        api.searchSpots() // 不帶 keyword，回傳全部景點
+    }
+
     suspend fun getSpotDetail(id: Int) = safeApiCall { api.getSpotDetail(id) }
 
     suspend fun createSpot(spot: Spot) = safeApiCall { api.createSpot(spot) }

@@ -108,6 +108,13 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun fetchAllSpots() {
+        _spotsResponse.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _spotsResponse.value = repository.getAllSpots()
+        }
+    }
+
     fun fetchItineraryDetail(id: Int) {
         _itineraryDetail.value = NetworkResult.Loading()
         viewModelScope.launch {
