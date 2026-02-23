@@ -10,6 +10,11 @@ import com.funTrip.fun2go.data.local.toEntity
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
+import com.funTrip.fun2go.data.model.DistanceInfo
+import com.funTrip.fun2go.data.remote.GoogleMapsRetrofitClient
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -26,6 +31,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removeSavedSpot(spotId: Int) {
         viewModelScope.launch { savedSpotDao.deleteById(spotId) }
+    }
+
+    // ─── Distance Matrix ───────────────────────────────────────
+    private val _distanceResults = MutableLiveData<List<DistanceInfo?>?>()
+    val distanceResults: LiveData<List<DistanceInfo?>?> = _distanceResults
+
+    fun fetchDistancesBetweenSpots(spots: List<Spot>, apiKey: String) {
+        if (spots.size < 2) {
+            _distanceResults.value = emptyList()
+            return
+        }
+        _distanceResults.value = null
+        viewModelScope.launch {
+            coroutineScope {
+                val deferreds = (0 until spots.size - 1).map { i ->
+                    async { fetchDistanceForPair(spots[i], spots[i + 1], apiKey) }
+                }
+                _distanceResults.postValue(deferreds.awaitAll())
+            }
+        }
+    }
+
+    private suspend fun fetchDistanceForPair(from: Spot, to: Spot, apiKey: String): DistanceInfo? {
+        val lat1 = from.latitude?.toDoubleOrNull() ?: return null
+        val lng1 = from.longitude?.toDoubleOrNull() ?: return null
+        val lat2 = to.latitude?.toDoubleOrNull() ?: return null
+        val lng2 = to.longitude?.toDoubleOrNull() ?: return null
+        return try {
+            val response = GoogleMapsRetrofitClient.apiService.getDistanceMatrix(
+                origins = "$lat1,$lng1",
+                destinations = "$lat2,$lng2",
+                key = apiKey
+            )
+            if (response.isSuccessful) {
+                val element = response.body()?.rows?.firstOrNull()?.elements?.firstOrNull()
+                if (element?.status == "OK") {
+                    DistanceInfo(
+                        element.distance?.text ?: return null,
+                        element.duration?.text ?: return null
+                    )
+                } else null
+            } else null
+        } catch (e: Exception) { null }
     }
 
     // --- 用戶 ---

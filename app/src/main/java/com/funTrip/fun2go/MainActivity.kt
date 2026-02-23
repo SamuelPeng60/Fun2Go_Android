@@ -11,12 +11,15 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
+import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.remote.NetworkResult
+import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -225,11 +228,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 viewModel.addSavedSpot(spot)
             }
             syncButton()
-            savedListAdapter?.notifyDataSetChanged()
+            savedListAdapter?.submitList(buildMixedList(null))
         }
 
         dialog.setContentView(view)
         dialog.show()
+    }
+
+    private fun buildMixedList(distances: List<DistanceInfo?>?): List<SavedListItem> {
+        val list = mutableListOf<SavedListItem>()
+        savedSpots.forEachIndexed { index, spot ->
+            list.add(SavedListItem.SpotItem(spot))
+            if (index < savedSpots.size - 1) {
+                val info = distances?.getOrNull(index)
+                if (info != null) {
+                    list.add(SavedListItem.DistanceSeparator(info.distance, info.duration))
+                }
+            }
+        }
+        return list
     }
 
     private fun showSavedListBottomSheet() {
@@ -250,23 +267,39 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         savedListAdapter = SavedSpotAdapter(
-            savedSpots,
             { cat -> categoryMap[cat] ?: cat ?: "景點" }
         ) { spot ->
             val pos = savedSpots.indexOfFirst { it.id == spot.id }
             if (pos != -1) {
                 savedSpots.removeAt(pos)
-                savedListAdapter?.notifyItemRemoved(pos)
                 viewModel.removeSavedSpot(spot.id)
+                savedListAdapter?.submitList(buildMixedList(null))
+                viewModel.fetchDistancesBetweenSpots(savedSpots, getString(R.string.google_maps_key))
                 refreshState()
             }
         }
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = savedListAdapter
+        savedListAdapter?.submitList(buildMixedList(null))
         refreshState()
 
-        dialog.setOnDismissListener { savedListAdapter = null }
+        // 觀察距離結果，拿到後更新列表
+        val distObserver = Observer<List<DistanceInfo?>?> { distances ->
+            if (distances != null) {
+                savedListAdapter?.submitList(buildMixedList(distances))
+            }
+        }
+        viewModel.distanceResults.observe(this, distObserver)
+
+        dialog.setOnDismissListener {
+            viewModel.distanceResults.removeObserver(distObserver)
+            savedListAdapter = null
+        }
+
+        // 開始取得距離
+        viewModel.fetchDistancesBetweenSpots(savedSpots, getString(R.string.google_maps_key))
+
         dialog.setContentView(view)
         dialog.show()
     }
