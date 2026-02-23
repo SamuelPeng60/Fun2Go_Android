@@ -65,6 +65,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- 用戶 ---
+    var currentUser: User? = null
+        private set
+
     private val _userResponse = MutableLiveData<NetworkResult<User>>()
     val userResponse: LiveData<NetworkResult<User>> = _userResponse
 
@@ -148,7 +151,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun fetchUser(userId: Int) {
         _userResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _userResponse.value = repository.getUser(userId)
+            val result = repository.getUser(userId)
+            if (result is NetworkResult.Success) currentUser = result.data
+            _userResponse.value = result
         }
     }
 
@@ -183,7 +188,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateUser(id: Int, name: String, email: String?) {
         _updateUserResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _updateUserResponse.value = repository.updateUser(id, name, email)
+            val result = repository.updateUser(id, name, email)
+            if (result is NetworkResult.Success) currentUser = result.data
+            _updateUserResponse.value = result
         }
     }
 

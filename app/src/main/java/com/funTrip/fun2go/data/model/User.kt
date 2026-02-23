@@ -8,5 +8,9 @@ data class User(
     @SerializedName("name")
     val name: String,
     @SerializedName("email")
-    val email: String
+    val email: String?,
+    @SerializedName("avatar_url")
+    val avatarUrl: String? = null,
+    @SerializedName("created_at")
+    val createdAt: String? = null
 )

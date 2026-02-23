@@ -76,6 +76,8 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    implementation("io.coil-kt:coil:2.6.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

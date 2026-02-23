@@ -15,6 +15,8 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Spot
@@ -22,6 +24,7 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -91,6 +94,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         btnRefreshUser.setOnClickListener {
             viewModel.fetchUser(1)
+        }
+
+        ivUserAvatar.setOnClickListener {
+            showProfileBottomSheet()
         }
 
         findViewById<MaterialButton>(R.id.btnListView)
@@ -323,7 +330,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    tvWelcome.text = response.data?.name ?: "遊客"
+                    val user = response.data
+                    tvWelcome.text = user?.name ?: "遊客"
+                    if (!user?.avatarUrl.isNullOrEmpty()) {
+                        ivUserAvatar.load(user!!.avatarUrl) {
+                            transformations(CircleCropTransformation())
+                            placeholder(android.R.drawable.sym_def_app_icon)
+                            error(android.R.drawable.sym_def_app_icon)
+                        }
+                    }
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
@@ -346,6 +361,71 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    // ─── 個人資料 BottomSheet ──────────────────────────────────
+
+    private fun showProfileBottomSheet() {
+        val user = viewModel.currentUser ?: run {
+            Toast.makeText(this, "尚未載入使用者資料", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_profile, null)
+
+        val ivAvatar = view.findViewById<ImageView>(R.id.ivProfileAvatar)
+        val etName   = view.findViewById<TextInputEditText>(R.id.etProfileName)
+        val etEmail  = view.findViewById<TextInputEditText>(R.id.etProfileEmail)
+        val tvDate   = view.findViewById<TextView>(R.id.tvProfileJoinDate)
+        val btnSave  = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
+
+        // 填入資料
+        etName.setText(user.name)
+        etEmail.setText(user.email ?: "")
+        tvDate.text = "加入日期：${user.createdAt?.take(10) ?: "—"}"
+
+        if (!user.avatarUrl.isNullOrEmpty()) {
+            ivAvatar.load(user.avatarUrl) {
+                transformations(CircleCropTransformation())
+                placeholder(android.R.drawable.sym_def_app_icon)
+                error(android.R.drawable.sym_def_app_icon)
+            }
+        }
+
+        // 儲存
+        val saveObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.User>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> btnSave.isEnabled = false
+                is NetworkResult.Success -> {
+                    btnSave.isEnabled = true
+                    tvWelcome.text = result.data?.name ?: user.name
+                    Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                }
+                is NetworkResult.Error -> {
+                    btnSave.isEnabled = true
+                    Toast.makeText(this, "儲存失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.updateUserResponse.observe(this, saveObserver)
+
+        btnSave.setOnClickListener {
+            val name  = etName.text?.toString()?.trim() ?: ""
+            val email = etEmail.text?.toString()?.trim()
+            if (name.isEmpty()) {
+                etName.error = "姓名不能為空"
+                return@setOnClickListener
+            }
+            viewModel.updateUser(user.id, name, email)
+        }
+
+        dialog.setOnDismissListener {
+            viewModel.updateUserResponse.removeObserver(saveObserver)
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
     }
 
     private fun showLoading(isLoading: Boolean) {
