@@ -1,0 +1,96 @@
+package com.funTrip.fun2go.data.remote
+
+import com.funTrip.fun2go.data.model.*
+import retrofit2.Response
+import retrofit2.http.*
+
+interface ApiService {
+
+    // --- 用戶 (Users) ---
+    @POST("api/users")
+    suspend fun createUser(@Body user: UserRequest): Response<User>
+
+    @GET("api/users/{id}")
+    suspend fun getUser(@Path("id") id: Int): Response<User>
+
+    @PUT("api/users/{id}")
+    suspend fun updateUser(@Path("id") id: Int, @Body user: UserRequest): Response<User>
+
+    @GET("api/users/{id}/itineraries")
+    suspend fun getUserItineraries(@Path("id") id: Int): Response<List<Itinerary>>
+
+    @GET("api/users/{id}/favorites")
+    suspend fun getUserFavorites(@Path("id") id: Int): Response<List<Spot>>
+
+    // --- 行程 (Itineraries) ---
+    @GET("api/itineraries")
+    suspend fun getItineraries(
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): Response<List<Itinerary>>
+
+    @POST("api/itineraries")
+    suspend fun createItinerary(@Body itinerary: ItineraryRequest): Response<Itinerary>
+
+    @GET("api/itineraries/{id}")
+    suspend fun getItineraryDetail(@Path("id") id: Int): Response<Itinerary>
+
+    @PUT("api/itineraries/{id}")
+    suspend fun updateItinerary(@Path("id") id: Int, @Body itinerary: ItineraryRequest): Response<Itinerary>
+
+    @DELETE("api/itineraries/{id}")
+    suspend fun deleteItinerary(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/itineraries/{id}/copy")
+    suspend fun copyItinerary(@Path("id") id: Int): Response<Itinerary>
+
+    @POST("api/itineraries/{id}/publish")
+    suspend fun publishItinerary(@Path("id") id: Int): Response<Itinerary>
+
+    // --- 行程天數 (Itinerary Days) ---
+    @POST("api/itineraries/{id}/days")
+    suspend fun addDay(@Path("id") itineraryId: Int): Response<ItineraryDay> // 假設不需要 body，自動加一天
+
+    @PUT("api/itineraries/{id}/days/{dayId}")
+    suspend fun updateDay(@Path("id") itineraryId: Int, @Path("dayId") dayId: Int, @Body dayData: Map<String, String>): Response<ItineraryDay>
+
+    @DELETE("api/itineraries/{id}/days/{dayId}")
+    suspend fun deleteDay(@Path("id") itineraryId: Int, @Path("dayId") dayId: Int): Response<Unit>
+
+    // --- 行程景點 (Itinerary Spots) ---
+    @POST("api/days/{dayId}/spots")
+    suspend fun addSpotToDay(@Path("dayId") dayId: Int, @Body request: AddSpotToDayRequest): Response<ItinerarySpot>
+
+    @PUT("api/days/{dayId}/spots/{spotId}")
+    suspend fun updateSpotInDay(@Path("dayId") dayId: Int, @Path("spotId") spotId: Int, @Body request: AddSpotToDayRequest): Response<ItinerarySpot>
+
+    @DELETE("api/days/{dayId}/spots/{spotId}")
+    suspend fun removeSpotFromDay(@Path("dayId") dayId: Int, @Path("spotId") spotId: Int): Response<Unit>
+
+    @PUT("api/days/{dayId}/spots/reorder")
+    suspend fun reorderSpots(@Path("dayId") dayId: Int, @Body request: ReorderRequest): Response<Unit>
+
+    // --- 景點 (Spots) ---
+    @GET("api/spots")
+    suspend fun searchSpots(
+        @Query("keyword") keyword: String? = null,
+        @Query("category") category: String? = null,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("radius") radius: Int? = null
+    ): Response<List<Spot>>
+
+    @GET("api/spots/{id}")
+    suspend fun getSpotDetail(@Path("id") id: Int): Response<Spot>
+
+    @POST("api/spots")
+    suspend fun createSpot(@Body spot: Spot): Response<Spot>
+
+    // --- 收藏 (Favorites) ---
+    @POST("api/favorites")
+    suspend fun addFavorite(@Body request: FavoriteRequest): Response<Unit>
+
+    // 注意: Retrofit 的 DELETE 預設不支援 Body，需使用 HTTP annotation 自定義
+    @HTTP(method = "DELETE", path = "api/favorites/{spotId}", hasBody = true)
+    suspend fun removeFavorite(@Path("spotId") spotId: Int, @Body request: UnfavoriteRequest): Response<Unit>
+}
