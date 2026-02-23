@@ -1,5 +1,7 @@
 package com.funTrip.fun2go.ui
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
@@ -10,9 +12,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.remote.NetworkResult
+import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -22,6 +27,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -40,6 +46,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var allSpots: List<Spot> = emptyList()
     private val markerSpotMap = HashMap<Marker, Spot>()
     private var selectedCategory = "all"
+
+    // 使用者已儲存的地標
+    private val savedSpots = mutableListOf<Spot>()
 
     // 分類對應表
     private val categoryMap = linkedMapOf(
@@ -79,9 +88,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             viewModel.fetchUser(1)
         }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnListView)
+        findViewById<MaterialButton>(R.id.btnListView)
             .setOnClickListener {
-                Toast.makeText(this, "列表功能開發中", Toast.LENGTH_SHORT).show()
+                showSavedListBottomSheet()
             }
 
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
@@ -191,6 +200,65 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             tvRating.text = "★ ${spot.rating}"
             tvRating.visibility = View.VISIBLE
         }
+
+        val btnAdd = view.findViewById<MaterialButton>(R.id.btnAddToList)
+
+        fun syncButton() {
+            if (savedSpots.any { it.id == spot.id }) {
+                btnAdd.text = "✓ 已加入"
+                btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
+            } else {
+                btnAdd.text = "＋ 加入列表"
+                btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F44062"))
+            }
+        }
+        syncButton()
+
+        btnAdd.setOnClickListener {
+            if (savedSpots.any { it.id == spot.id }) {
+                savedSpots.removeAll { it.id == spot.id }
+            } else {
+                savedSpots.add(spot)
+            }
+            syncButton()
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    private fun showSavedListBottomSheet() {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_saved_list, null)
+
+        val tvEmpty = view.findViewById<TextView>(R.id.tvEmptyList)
+        val rv = view.findViewById<RecyclerView>(R.id.rvSavedSpots)
+
+        fun refreshState() {
+            if (savedSpots.isEmpty()) {
+                tvEmpty.visibility = View.VISIBLE
+                rv.visibility = View.GONE
+            } else {
+                tvEmpty.visibility = View.GONE
+                rv.visibility = View.VISIBLE
+            }
+        }
+
+        val adapter = SavedSpotAdapter(
+            savedSpots,
+            { cat -> categoryMap[cat] ?: cat ?: "景點" }
+        ) { spot ->
+            val pos = savedSpots.indexOfFirst { it.id == spot.id }
+            if (pos != -1) {
+                savedSpots.removeAt(pos)
+                rv.adapter?.notifyItemRemoved(pos)
+                refreshState()
+            }
+        }
+
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = adapter
+        refreshState()
 
         dialog.setContentView(view)
         dialog.show()

@@ -70,4 +70,17 @@
         android:textColor="#888888"
         android:visibility="gone" />
 
+    <!-- 加入列表按鈕 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnAddToList"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="20dp"
+        android:text="＋ 加入列表"
+        android:textColor="@android:color/white"
+        app:backgroundTint="#F44062"
+        app:cornerRadius="24dp" />
+
 </LinearLayout>
