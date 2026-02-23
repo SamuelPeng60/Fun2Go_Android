@@ -10,12 +10,8 @@ import com.funTrip.fun2go.data.local.toEntity
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
-import com.funTrip.fun2go.data.model.DistanceInfo
-import com.funTrip.fun2go.data.remote.GoogleMapsRetrofitClient
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.*
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -33,47 +29,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { savedSpotDao.deleteById(spotId) }
     }
 
-    // ─── Distance Matrix ───────────────────────────────────────
+    // ─── Distance (Haversine) ─────────────────────────────────
+
     private val _distanceResults = MutableLiveData<List<DistanceInfo?>?>()
     val distanceResults: LiveData<List<DistanceInfo?>?> = _distanceResults
 
-    fun fetchDistancesBetweenSpots(spots: List<Spot>, apiKey: String) {
-        if (spots.size < 2) {
-            _distanceResults.value = emptyList()
-            return
-        }
-        _distanceResults.value = null
-        viewModelScope.launch {
-            coroutineScope {
-                val deferreds = (0 until spots.size - 1).map { i ->
-                    async { fetchDistanceForPair(spots[i], spots[i + 1], apiKey) }
-                }
-                _distanceResults.postValue(deferreds.awaitAll())
-            }
+    fun fetchDistancesBetweenSpots(spots: List<Spot>) {
+        if (spots.size < 2) { _distanceResults.value = emptyList(); return }
+        _distanceResults.value = (0 until spots.size - 1).map { i ->
+            calcDistanceInfo(spots[i], spots[i + 1])
         }
     }
 
-    private suspend fun fetchDistanceForPair(from: Spot, to: Spot, apiKey: String): DistanceInfo? {
+    private fun calcDistanceInfo(from: Spot, to: Spot): DistanceInfo? {
         val lat1 = from.latitude?.toDoubleOrNull() ?: return null
         val lng1 = from.longitude?.toDoubleOrNull() ?: return null
         val lat2 = to.latitude?.toDoubleOrNull() ?: return null
         val lng2 = to.longitude?.toDoubleOrNull() ?: return null
-        return try {
-            val response = GoogleMapsRetrofitClient.apiService.getDistanceMatrix(
-                origins = "$lat1,$lng1",
-                destinations = "$lat2,$lng2",
-                key = apiKey
-            )
-            if (response.isSuccessful) {
-                val element = response.body()?.rows?.firstOrNull()?.elements?.firstOrNull()
-                if (element?.status == "OK") {
-                    DistanceInfo(
-                        element.distance?.text ?: return null,
-                        element.duration?.text ?: return null
-                    )
-                } else null
-            } else null
-        } catch (e: Exception) { null }
+        val R = 6371.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLng = Math.toRadians(lng2 - lng1)
+        val a = sin(dLat / 2).pow(2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2)
+        val roadKm = R * 2 * atan2(sqrt(a), sqrt(1 - a)) * 1.3
+        val minutes = (roadKm / 40.0 * 60).toInt().coerceAtLeast(1)
+        val distText = when {
+            roadKm < 1.0  -> "${(roadKm * 1000).toInt()} 公尺"
+            roadKm < 10.0 -> "%.1f 公里".format(roadKm)
+            else          -> "${roadKm.toInt()} 公里"
+        }
+        val durationText = if (minutes < 60) "約 $minutes 分鐘"
+        else { val h = minutes / 60; val m = minutes % 60
+            if (m == 0) "約 $h 小時" else "約 ${h}h${m}m" }
+        return DistanceInfo(distText, durationText)
     }
 
     // --- 用戶 ---

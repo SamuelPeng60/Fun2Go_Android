@@ -274,7 +274,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 savedSpots.removeAt(pos)
                 viewModel.removeSavedSpot(spot.id)
                 savedListAdapter?.submitList(buildMixedList(null))
-                viewModel.fetchDistancesBetweenSpots(savedSpots, getString(R.string.google_maps_key))
+                viewModel.fetchDistancesBetweenSpots(savedSpots)
                 refreshState()
             }
         }
@@ -298,7 +298,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         // 開始取得距離
-        viewModel.fetchDistancesBetweenSpots(savedSpots, getString(R.string.google_maps_key))
+        viewModel.fetchDistancesBetweenSpots(savedSpots)
 
         dialog.setContentView(view)
         dialog.show()
