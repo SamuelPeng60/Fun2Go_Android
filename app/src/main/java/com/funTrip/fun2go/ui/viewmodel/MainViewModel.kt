@@ -52,7 +52,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val a = sin(dLat / 2).pow(2) +
                 cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2)
         val roadKm = R * 2 * atan2(sqrt(a), sqrt(1 - a)) * 1.3
-        val minutes = (roadKm / 40.0 * 60).toInt().coerceAtLeast(1)
+        val minutes = (roadKm / 25.0 * 60).toInt().coerceAtLeast(1)
         val distText = when {
             roadKm < 1.0  -> "${(roadKm * 1000).toInt()} 公尺"
             roadKm < 10.0 -> "%.1f 公里".format(roadKm)
