@@ -88,6 +88,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             .setOnClickListener {
                 Toast.makeText(this, "新增行程功能開發中", Toast.LENGTH_SHORT).show()
             }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnZoomIn)
+            .setOnClickListener {
+                if (::googleMap.isInitialized)
+                    googleMap.animateCamera(CameraUpdateFactory.zoomIn())
+            }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnZoomOut)
+            .setOnClickListener {
+                if (::googleMap.isInitialized)
+                    googleMap.animateCamera(CameraUpdateFactory.zoomOut())
+            }
     }
 
     private fun setupCategoryChips() {
@@ -125,10 +137,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
-        googleMap.uiSettings.isZoomControlsEnabled = true
+        googleMap.uiSettings.isZoomControlsEnabled = false
+        googleMap.uiSettings.isZoomGesturesEnabled = true
 
-        // 預設鏡頭：台灣中心
-        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(23.6978, 120.9605), 7f))
+        // 預設鏡頭：台北市中心，zoom 14 可看到街道名稱
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(25.0330, 121.5654), 14f))
 
         googleMap.setOnMarkerClickListener { marker ->
             markerSpotMap[marker]?.let { showSpotBottomSheet(it) }
