@@ -65,7 +65,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val account = task.getResult(ApiException::class.java)
                 val idToken = account.idToken
                 if (idToken != null) {
-                    viewModel.loginWithGoogle(idToken)
+                    // 立刻用 Google 帳號資訊更新 Header，不等後端
+                    tvWelcome.text = account.displayName ?: account.email ?: "用戶"
+                    account.photoUrl?.let { uri ->
+                        ivUserAvatar.load(uri.toString()) {
+                            transformations(CircleCropTransformation())
+                            placeholder(android.R.drawable.sym_def_app_icon)
+                        }
+                    }
+                    // 呼叫後端取 JWT，並將 Google 頭像 URL 作為備用
+                    viewModel.loginWithGoogle(idToken, account.photoUrl?.toString())
                 } else {
                     Toast.makeText(this, "無法取得 Google Token，請重試", Toast.LENGTH_SHORT).show()
                 }

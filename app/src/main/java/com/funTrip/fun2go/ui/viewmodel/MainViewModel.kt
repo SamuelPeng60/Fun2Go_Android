@@ -40,16 +40,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginResult = MutableLiveData<NetworkResult<User>>()
     val loginResult: LiveData<NetworkResult<User>> = _loginResult
 
-    fun loginWithGoogle(idToken: String) {
+    fun loginWithGoogle(idToken: String, googlePhotoUrl: String? = null) {
         _loginResult.value = NetworkResult.Loading()
         viewModelScope.launch {
             val result = repository.loginWithGoogle(idToken)
             if (result is NetworkResult.Success) {
-                val auth = result.data!!
-                tokenManager.saveLoginResult(auth.user, auth.accessToken, auth.refreshToken)
-                currentUser = auth.user
-                _currentUserLiveData.value = auth.user
-                _loginResult.value = NetworkResult.Success(auth.user)
+                val auth = result.data ?: run {
+                    _loginResult.value = NetworkResult.Error("伺服器回應異常，請重試")
+                    return@launch
+                }
+                // 後端若未回傳頭像，改用 Google 頭像 URL
+                val user = if (auth.user.avatarUrl.isNullOrEmpty() && googlePhotoUrl != null)
+                    auth.user.copy(avatarUrl = googlePhotoUrl)
+                else
+                    auth.user
+                tokenManager.saveLoginResult(user, auth.accessToken, auth.refreshToken)
+                currentUser = user
+                _currentUserLiveData.value = user
+                _loginResult.value = NetworkResult.Success(user)
             } else {
                 _loginResult.value = NetworkResult.Error((result as NetworkResult.Error).message ?: "登入失敗")
             }
