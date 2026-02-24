@@ -25,6 +25,7 @@ import coil.transform.CircleCropTransformation
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Spot
+import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
@@ -63,20 +64,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(ApiException::class.java)
+                // 立刻儲存 Google 帳號資訊 → isLoggedIn() 立即為 true
+                val tempUser = User(
+                    id = 0,
+                    name = account.displayName ?: account.email ?: "Google 用戶",
+                    email = account.email,
+                    avatarUrl = account.photoUrl?.toString()
+                )
+                viewModel.saveGoogleAccount(tempUser)
+                loginDialog?.dismiss()
+
                 val idToken = account.idToken
                 if (idToken != null) {
-                    // 立刻用 Google 帳號資訊更新 Header，不等後端
-                    tvWelcome.text = account.displayName ?: account.email ?: "用戶"
-                    account.photoUrl?.let { uri ->
-                        ivUserAvatar.load(uri.toString()) {
-                            transformations(CircleCropTransformation())
-                            placeholder(android.R.drawable.sym_def_app_icon)
-                        }
-                    }
-                    // 呼叫後端取 JWT，並將 Google 頭像 URL 作為備用
+                    // 再呼叫後端取 JWT（會更新為後端的用戶資訊）
                     viewModel.loginWithGoogle(idToken, account.photoUrl?.toString())
-                } else {
-                    Toast.makeText(this, "無法取得 Google Token，請重試", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: ApiException) {
                 Toast.makeText(this, "Google 登入失敗：${e.statusCode}", Toast.LENGTH_SHORT).show()

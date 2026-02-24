@@ -42,7 +42,13 @@ class TokenManager private constructor(context: Context) {
         return try { gson.fromJson(json, User::class.java) } catch (e: Exception) { null }
     }
 
-    fun isLoggedIn(): Boolean = getAccessToken() != null
+    fun saveGoogleAccount(user: User) {
+        prefs.edit()
+            .putString("user_json", gson.toJson(user))
+            .apply()
+    }
+
+    fun isLoggedIn(): Boolean = getSavedUser() != null
 
     fun clear() = prefs.edit().clear().apply()
 }

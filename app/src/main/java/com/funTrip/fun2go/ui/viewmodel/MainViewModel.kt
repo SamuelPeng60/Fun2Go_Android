@@ -64,6 +64,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveGoogleAccount(user: User) {
+        tokenManager.saveGoogleAccount(user)
+        currentUser = user
+        _currentUserLiveData.value = user
+    }
+
     fun logout() {
         val refreshToken = tokenManager.getRefreshToken()
         if (refreshToken != null) {
