@@ -232,6 +232,31 @@
             app:strokeWidth="1dp"
             app:cornerRadius="8dp" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:background="@android:color/transparent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMyLocation"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:src="@android:drawable/ic_menu_mylocation"
+            app:icon="@android:drawable/ic_menu_mylocation"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="20dp"
+            app:iconTint="#F44062"
+            app:backgroundTint="#FFFFFF"
+            app:strokeColor="#DDDDDD"
+            app:strokeWidth="1dp"
+            app:cornerRadius="8dp"
+            android:contentDescription="My Location" />
+
     </LinearLayout>
 
     <!-- Loading 指示器 -->

@@ -1,5 +1,7 @@
 package com.funTrip.fun2go.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -10,7 +12,9 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -24,7 +28,8 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
-import com.google.android.material.textfield.TextInputEditText
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -35,11 +40,28 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
+import com.google.android.material.textfield.TextInputEditText
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var viewModel: MainViewModel
     private lateinit var googleMap: GoogleMap
+
+    // 定位
+    private val fusedLocationClient by lazy {
+        LocationServices.getFusedLocationProviderClient(this)
+    }
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                      permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            enableMyLocation()
+        } else {
+            Toast.makeText(this, "需要位置權限才能顯示目前位置", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // UI
     private lateinit var progressBar: ProgressBar
@@ -121,6 +143,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 if (::googleMap.isInitialized)
                     googleMap.animateCamera(CameraUpdateFactory.zoomOut())
             }
+
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnMyLocation)
+            .setOnClickListener {
+                moveToMyLocation()
+            }
     }
 
     private fun setupCategoryChips() {
@@ -160,6 +187,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap = map
         googleMap.uiSettings.isZoomControlsEnabled = false
         googleMap.uiSettings.isZoomGesturesEnabled = true
+        googleMap.uiSettings.isMyLocationButtonEnabled = false  // 用自訂按鈕取代
 
         // 預設鏡頭：台北市中心，zoom 14 可看到街道名稱
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(25.0330, 121.5654), 14f))
@@ -167,6 +195,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap.setOnMarkerClickListener { marker ->
             markerSpotMap[marker]?.let { showSpotBottomSheet(it) }
             true
+        }
+
+        // 若已有位置權限，立即啟用藍點顯示；否則請求權限
+        if (hasLocationPermission()) {
+            enableMyLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
         }
 
         // 若景點已先載入則立即打點
@@ -426,6 +464,44 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         dialog.setContentView(view)
         dialog.show()
+    }
+
+    // ─── 定位功能 ──────────────────────────────────────────────
+
+    private fun hasLocationPermission() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    @androidx.annotation.RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    private fun enableMyLocation() {
+        if (::googleMap.isInitialized) {
+            googleMap.isMyLocationEnabled = true   // 地圖上持續顯示藍點
+        }
+    }
+
+    private fun moveToMyLocation() {
+        if (!hasLocationPermission()) {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+            return
+        }
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    googleMap.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(location.latitude, location.longitude), 16f
+                        )
+                    )
+                } else {
+                    Toast.makeText(this, "無法取得目前位置，請確認 GPS 已開啟", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "定位失敗：${it.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun showLoading(isLoading: Boolean) {
