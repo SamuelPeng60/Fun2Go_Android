@@ -6,6 +6,16 @@ import retrofit2.http.*
 
 interface ApiService {
 
+    // --- 認證 (Auth) ---
+    @POST("api/auth/google")
+    suspend fun loginWithGoogle(@Body request: GoogleAuthRequest): Response<AuthResponse>
+
+    @POST("api/auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<RefreshTokenResponse>
+
+    @POST("api/auth/logout")
+    suspend fun logout(@Body request: LogoutRequest): Response<Unit>
+
     // --- 用戶 (Users) ---
     @POST("api/users")
     suspend fun createUser(@Body user: UserRequest): Response<User>

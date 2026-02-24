@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Fun2Go</string>
     <string name="google_maps_key">PLACEHOLDER_REPLACED_BY_GRADLE</string>
+    <string name="google_web_client_id">36737576573-s3tn6pbnm5cq4coq8g8u3h7v6pp4krld.apps.googleusercontent.com</string>
 </resources>

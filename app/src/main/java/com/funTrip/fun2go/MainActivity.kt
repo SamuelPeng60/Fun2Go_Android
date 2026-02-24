@@ -1,6 +1,7 @@
 package com.funTrip.fun2go.ui
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -28,6 +29,10 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -47,7 +52,30 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var viewModel: MainViewModel
     private lateinit var googleMap: GoogleMap
 
-    // 定位
+    // ─── Google Sign-In ────────────────────────────────────────
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private var loginDialog: BottomSheetDialog? = null
+
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    viewModel.loginWithGoogle(idToken)
+                } else {
+                    Toast.makeText(this, "無法取得 Google Token，請重試", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: ApiException) {
+                Toast.makeText(this, "Google 登入失敗：${e.statusCode}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // ─── 定位 ──────────────────────────────────────────────────
     private val fusedLocationClient by lazy {
         LocationServices.getFusedLocationProviderClient(this)
     }
@@ -63,7 +91,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    // UI
+    // ─── UI ────────────────────────────────────────────────────
     private lateinit var progressBar: ProgressBar
     private lateinit var tvWelcome: TextView
     private lateinit var ivUserAvatar: ImageView
@@ -75,25 +103,25 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val markerSpotMap = HashMap<Marker, Spot>()
     private var selectedCategory = "all"
 
-    // 使用者已儲存的地標（從 Room 初始載入後由 in-memory 維護）
+    // 我的列表
     private val savedSpots = mutableListOf<Spot>()
     private var hasLoadedFromDb = false
     private var savedListAdapter: SavedSpotAdapter? = null
 
-    // 分類對應表
     private val categoryMap = linkedMapOf(
-        "all"         to "全部",
-        "attraction"  to "景點",
-        "restaurant"  to "餐廳",
+        "all"          to "全部",
+        "attraction"   to "景點",
+        "restaurant"   to "餐廳",
         "night_market" to "夜市",
-        "shopping"    to "購物",
-        "cafe"        to "咖啡廳"
+        "shopping"     to "購物",
+        "cafe"         to "咖啡廳"
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        initGoogleSignIn()
         initViews()
         setupCategoryChips()
 
@@ -103,51 +131,99 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         initViewModel()
 
-        viewModel.fetchUser(1)
         viewModel.fetchAllSpots()
     }
 
-    private fun initViews() {
-        progressBar   = findViewById(R.id.progressBar)
-        tvWelcome     = findViewById(R.id.tvWelcome)
-        ivUserAvatar  = findViewById(R.id.ivUserAvatar)
-        btnRefreshUser = findViewById(R.id.btnRefreshUser)
-        chipGroup     = findViewById(R.id.chipGroup)
+    // ─── Google Sign-In 初始化 ─────────────────────────────────
 
-        btnRefreshUser.setOnClickListener {
-            viewModel.fetchUser(1)
+    private fun initGoogleSignIn() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.google_web_client_id))
+            .requestEmail()
+            .requestProfile()
+            .build()
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+    }
+
+    /** 顯示登入提示 BottomSheet */
+    private fun showLoginBottomSheet(descText: String = "登入後即可使用此功能") {
+        if (loginDialog?.isShowing == true) return
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_login, null)
+
+        view.findViewById<TextView>(R.id.tvLoginDesc).text = descText
+
+        view.findViewById<MaterialButton>(R.id.btnGoogleSignIn).setOnClickListener {
+            dialog.dismiss()
+            // 先 signOut 確保每次都顯示帳號選擇畫面
+            googleSignInClient.signOut().addOnCompleteListener {
+                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+            }
         }
+
+        loginDialog = dialog
+        dialog.setOnDismissListener { loginDialog = null }
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    /** 需要登入才能執行的操作 */
+    private fun requireLogin(desc: String = "登入後即可使用此功能", action: () -> Unit) {
+        if (viewModel.isLoggedIn) {
+            action()
+        } else {
+            showLoginBottomSheet(desc)
+        }
+    }
+
+    // ─── Views 初始化 ──────────────────────────────────────────
+
+    private fun initViews() {
+        progressBar    = findViewById(R.id.progressBar)
+        tvWelcome      = findViewById(R.id.tvWelcome)
+        ivUserAvatar   = findViewById(R.id.ivUserAvatar)
+        btnRefreshUser = findViewById(R.id.btnRefreshUser)
+        chipGroup      = findViewById(R.id.chipGroup)
 
         ivUserAvatar.setOnClickListener {
-            showProfileBottomSheet()
+            if (viewModel.isLoggedIn) {
+                showProfileBottomSheet()
+            } else {
+                showLoginBottomSheet("登入後即可查看個人資料")
+            }
         }
 
-        findViewById<MaterialButton>(R.id.btnListView)
-            .setOnClickListener {
-                showSavedListBottomSheet()
+        btnRefreshUser.setOnClickListener {
+            val uid = viewModel.currentUser?.id
+            if (uid != null) {
+                viewModel.fetchUser(uid)
+            } else {
+                showLoginBottomSheet()
             }
+        }
+
+        findViewById<MaterialButton>(R.id.btnListView).setOnClickListener {
+            showSavedListBottomSheet()
+        }
 
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
             .setOnClickListener {
-                Toast.makeText(this, "新增行程功能開發中", Toast.LENGTH_SHORT).show()
+                requireLogin("登入後即可建立旅遊行程") {
+                    Toast.makeText(this, "新增行程功能開發中", Toast.LENGTH_SHORT).show()
+                }
             }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnZoomIn)
-            .setOnClickListener {
-                if (::googleMap.isInitialized)
-                    googleMap.animateCamera(CameraUpdateFactory.zoomIn())
-            }
+        findViewById<MaterialButton>(R.id.btnZoomIn).setOnClickListener {
+            if (::googleMap.isInitialized) googleMap.animateCamera(CameraUpdateFactory.zoomIn())
+        }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnZoomOut)
-            .setOnClickListener {
-                if (::googleMap.isInitialized)
-                    googleMap.animateCamera(CameraUpdateFactory.zoomOut())
-            }
+        findViewById<MaterialButton>(R.id.btnZoomOut).setOnClickListener {
+            if (::googleMap.isInitialized) googleMap.animateCamera(CameraUpdateFactory.zoomOut())
+        }
 
-        findViewById<com.google.android.material.button.MaterialButton>(R.id.btnMyLocation)
-            .setOnClickListener {
-                moveToMyLocation()
-            }
+        findViewById<MaterialButton>(R.id.btnMyLocation).setOnClickListener {
+            moveToMyLocation()
+        }
     }
 
     private fun setupCategoryChips() {
@@ -165,7 +241,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 setChipStrokeColorResource(android.R.color.darker_gray)
             }
             chip.setOnClickListener {
-                // 更新所有 chip 樣式
                 for (i in 0 until chipGroup.childCount) {
                     val c = chipGroup.getChildAt(i) as Chip
                     val isSelected = c == chip
@@ -187,9 +262,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         googleMap = map
         googleMap.uiSettings.isZoomControlsEnabled = false
         googleMap.uiSettings.isZoomGesturesEnabled = true
-        googleMap.uiSettings.isMyLocationButtonEnabled = false  // 用自訂按鈕取代
+        googleMap.uiSettings.isMyLocationButtonEnabled = false
 
-        // 預設鏡頭：台北市中心，zoom 14 可看到街道名稱
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(25.0330, 121.5654), 14f))
 
         googleMap.setOnMarkerClickListener { marker ->
@@ -197,7 +271,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             true
         }
 
-        // 若已有位置權限，立即啟用藍點顯示；否則請求權限
         if (hasLocationPermission()) {
             enableMyLocation()
         } else {
@@ -207,7 +280,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             )
         }
 
-        // 若景點已先載入則立即打點
         if (allSpots.isNotEmpty()) filterAndPlaceMarkers()
     }
 
@@ -225,9 +297,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             val lat = spot.latitude?.toDoubleOrNull() ?: return@forEach
             val lng = spot.longitude?.toDoubleOrNull() ?: return@forEach
             val marker = googleMap.addMarker(
-                MarkerOptions()
-                    .position(LatLng(lat, lng))
-                    .title(spot.name)
+                MarkerOptions().position(LatLng(lat, lng)).title(spot.name)
             )
             marker?.let { markerSpotMap[it] = spot }
         }
@@ -329,11 +399,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         savedListAdapter?.submitList(buildMixedList(null))
         refreshState()
 
-        // 觀察距離結果，拿到後更新列表
         val distObserver = Observer<List<DistanceInfo?>?> { distances ->
-            if (distances != null) {
-                savedListAdapter?.submitList(buildMixedList(distances))
-            }
+            if (distances != null) savedListAdapter?.submitList(buildMixedList(distances))
         }
         viewModel.distanceResults.observe(this, distObserver)
 
@@ -342,9 +409,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             savedListAdapter = null
         }
 
-        // 開始取得距離
         viewModel.fetchDistancesBetweenSpots(savedSpots)
-
         dialog.setContentView(view)
         dialog.show()
     }
@@ -354,7 +419,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun initViewModel() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
-        // 從 Room 載入已儲存的地標（僅初始化一次）
+        // 從 Room 載入已儲存景點（僅一次）
         viewModel.savedSpotsLiveData.observe(this) { entities ->
             if (!hasLoadedFromDb) {
                 hasLoadedFromDb = true
@@ -363,28 +428,53 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        viewModel.userResponse.observe(this) { response ->
-            when (response) {
+        // Header 由 currentUserLiveData 驅動
+        viewModel.currentUserLiveData.observe(this) { user ->
+            if (user != null) {
+                tvWelcome.text = user.name
+                if (!user.avatarUrl.isNullOrEmpty()) {
+                    ivUserAvatar.load(user.avatarUrl) {
+                        transformations(CircleCropTransformation())
+                        placeholder(android.R.drawable.sym_def_app_icon)
+                        error(android.R.drawable.sym_def_app_icon)
+                    }
+                } else {
+                    ivUserAvatar.setImageResource(android.R.drawable.sym_def_app_icon)
+                }
+            } else {
+                tvWelcome.text = "遊客"
+                ivUserAvatar.setImageResource(android.R.drawable.sym_def_app_icon)
+            }
+        }
+
+        // Google 登入結果
+        viewModel.loginResult.observe(this) { result ->
+            when (result) {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    val user = response.data
-                    tvWelcome.text = user?.name ?: "遊客"
-                    if (!user?.avatarUrl.isNullOrEmpty()) {
-                        ivUserAvatar.load(user!!.avatarUrl) {
-                            transformations(CircleCropTransformation())
-                            placeholder(android.R.drawable.sym_def_app_icon)
-                            error(android.R.drawable.sym_def_app_icon)
-                        }
-                    }
+                    Toast.makeText(this, "歡迎，${result.data?.name}！", Toast.LENGTH_SHORT).show()
                 }
                 is NetworkResult.Error -> {
+                    showLoading(false)
+                    Toast.makeText(this, "登入失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        // 刷新用戶（loading 狀態）
+        viewModel.userResponse.observe(this) { response ->
+            when (response) {
+                is NetworkResult.Loading -> showLoading(true)
+                is NetworkResult.Success -> showLoading(false)
+                is NetworkResult.Error   -> {
                     showLoading(false)
                     Toast.makeText(this, "用戶讀取失敗: ${response.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
+        // 景點
         viewModel.spotsResponse.observe(this) { response ->
             when (response) {
                 is NetworkResult.Loading -> showLoading(true)
@@ -416,8 +506,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val etEmail  = view.findViewById<TextInputEditText>(R.id.etProfileEmail)
         val tvDate   = view.findViewById<TextView>(R.id.tvProfileJoinDate)
         val btnSave  = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
+        val btnLogout = view.findViewById<MaterialButton>(R.id.btnLogout)
 
-        // 填入資料
         etName.setText(user.name)
         etEmail.setText(user.email ?: "")
         tvDate.text = "加入日期：${user.createdAt?.take(10) ?: "—"}"
@@ -430,13 +520,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // 儲存
         val saveObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.User>> { result ->
             when (result) {
                 is NetworkResult.Loading -> btnSave.isEnabled = false
                 is NetworkResult.Success -> {
                     btnSave.isEnabled = true
-                    tvWelcome.text = result.data?.name ?: user.name
                     Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 }
@@ -451,17 +539,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnSave.setOnClickListener {
             val name  = etName.text?.toString()?.trim() ?: ""
             val email = etEmail.text?.toString()?.trim()
-            if (name.isEmpty()) {
-                etName.error = "姓名不能為空"
-                return@setOnClickListener
-            }
+            if (name.isEmpty()) { etName.error = "姓名不能為空"; return@setOnClickListener }
             viewModel.updateUser(user.id, name, email)
+        }
+
+        btnLogout.setOnClickListener {
+            viewModel.logout()
+            googleSignInClient.signOut()
+            dialog.dismiss()
+            Toast.makeText(this, "已登出", Toast.LENGTH_SHORT).show()
         }
 
         dialog.setOnDismissListener {
             viewModel.updateUserResponse.removeObserver(saveObserver)
         }
-
         dialog.setContentView(view)
         dialog.show()
     }
@@ -475,7 +566,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     @androidx.annotation.RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun enableMyLocation() {
         if (::googleMap.isInitialized) {
-            googleMap.isMyLocationEnabled = true   // 地圖上持續顯示藍點
+            googleMap.isMyLocationEnabled = true
         }
     }
 

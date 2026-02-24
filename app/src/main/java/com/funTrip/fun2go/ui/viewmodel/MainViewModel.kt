@@ -6,9 +6,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.funTrip.fun2go.data.local.AppDatabase
+import com.funTrip.fun2go.data.local.TokenManager
 import com.funTrip.fun2go.data.local.toEntity
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
+import com.funTrip.fun2go.data.remote.RetrofitClient
 import com.funTrip.fun2go.data.repository.TripRepository
 import kotlinx.coroutines.launch
 import kotlin.math.*
@@ -16,6 +18,53 @@ import kotlin.math.*
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TripRepository()
+
+    // ─── TokenManager ─────────────────────────────────────────
+    val tokenManager: TokenManager = TokenManager.getInstance(application)
+
+    init {
+        // 讓 RetrofitClient 的 interceptor 能取得 token
+        RetrofitClient.tokenManager = tokenManager
+    }
+
+    val isLoggedIn: Boolean get() = tokenManager.isLoggedIn()
+
+    // ─── 當前用戶（LiveData 驅動 Header UI）──────────────────
+    var currentUser: User? = tokenManager.getSavedUser()
+        private set
+
+    private val _currentUserLiveData = MutableLiveData<User?>(currentUser)
+    val currentUserLiveData: LiveData<User?> = _currentUserLiveData
+
+    // ─── Auth LiveData ────────────────────────────────────────
+    private val _loginResult = MutableLiveData<NetworkResult<User>>()
+    val loginResult: LiveData<NetworkResult<User>> = _loginResult
+
+    fun loginWithGoogle(idToken: String) {
+        _loginResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.loginWithGoogle(idToken)
+            if (result is NetworkResult.Success) {
+                val auth = result.data!!
+                tokenManager.saveLoginResult(auth.user, auth.accessToken, auth.refreshToken)
+                currentUser = auth.user
+                _currentUserLiveData.value = auth.user
+                _loginResult.value = NetworkResult.Success(auth.user)
+            } else {
+                _loginResult.value = NetworkResult.Error((result as NetworkResult.Error).message ?: "登入失敗")
+            }
+        }
+    }
+
+    fun logout() {
+        val refreshToken = tokenManager.getRefreshToken()
+        if (refreshToken != null) {
+            viewModelScope.launch { repository.logout(refreshToken) }
+        }
+        tokenManager.clear()
+        currentUser = null
+        _currentUserLiveData.value = null
+    }
 
     // ─── Room DB ───────────────────────────────────────────────
     private val savedSpotDao = AppDatabase.getDatabase(application).savedSpotDao()
@@ -30,7 +79,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ─── Distance (Haversine) ─────────────────────────────────
-
     private val _distanceResults = MutableLiveData<List<DistanceInfo?>?>()
     val distanceResults: LiveData<List<DistanceInfo?>?> = _distanceResults
 
@@ -64,15 +112,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return DistanceInfo(distText, durationText)
     }
 
-    // --- 用戶 ---
-    var currentUser: User? = null
-        private set
-
+    // ─── 用戶 API ─────────────────────────────────────────────
     private val _userResponse = MutableLiveData<NetworkResult<User>>()
     val userResponse: LiveData<NetworkResult<User>> = _userResponse
-
-    private val _createUserResponse = MutableLiveData<NetworkResult<User>>()
-    val createUserResponse: LiveData<NetworkResult<User>> = _createUserResponse
 
     private val _updateUserResponse = MutableLiveData<NetworkResult<User>>()
     val updateUserResponse: LiveData<NetworkResult<User>> = _updateUserResponse
@@ -83,11 +125,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _userFavoritesResponse = MutableLiveData<NetworkResult<List<Spot>>>()
     val userFavoritesResponse: LiveData<NetworkResult<List<Spot>>> = _userFavoritesResponse
 
-    // --- 景點搜尋 ---
+    // ─── 景點搜尋 ─────────────────────────────────────────────
     private val _spotsResponse = MutableLiveData<NetworkResult<List<Spot>>>()
     val spotsResponse: LiveData<NetworkResult<List<Spot>>> = _spotsResponse
 
-    // --- 行程 ---
+    // ─── 行程 ─────────────────────────────────────────────────
     private val _itineraryDetail = MutableLiveData<NetworkResult<Itinerary>>()
     val itineraryDetail: LiveData<NetworkResult<Itinerary>> = _itineraryDetail
 
@@ -109,7 +151,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _publishItineraryResponse = MutableLiveData<NetworkResult<Itinerary>>()
     val publishItineraryResponse: LiveData<NetworkResult<Itinerary>> = _publishItineraryResponse
 
-    // --- 行程天數 ---
+    // ─── 行程天數 ─────────────────────────────────────────────
     private val _addDayResponse = MutableLiveData<NetworkResult<ItineraryDay>>()
     val addDayResponse: LiveData<NetworkResult<ItineraryDay>> = _addDayResponse
 
@@ -119,7 +161,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _deleteDayResponse = MutableLiveData<NetworkResult<Unit>>()
     val deleteDayResponse: LiveData<NetworkResult<Unit>> = _deleteDayResponse
 
-    // --- 行程景點 ---
+    // ─── 行程景點 ─────────────────────────────────────────────
     private val _addSpotToDayResponse = MutableLiveData<NetworkResult<ItinerarySpot>>()
     val addSpotToDayResponse: LiveData<NetworkResult<ItinerarySpot>> = _addSpotToDayResponse
 
@@ -132,14 +174,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _reorderSpotsResponse = MutableLiveData<NetworkResult<Unit>>()
     val reorderSpotsResponse: LiveData<NetworkResult<Unit>> = _reorderSpotsResponse
 
-    // --- 景點 ---
+    // ─── 景點 ─────────────────────────────────────────────────
     private val _spotDetailResponse = MutableLiveData<NetworkResult<Spot>>()
     val spotDetailResponse: LiveData<NetworkResult<Spot>> = _spotDetailResponse
 
     private val _createSpotResponse = MutableLiveData<NetworkResult<Spot>>()
     val createSpotResponse: LiveData<NetworkResult<Spot>> = _createSpotResponse
 
-    // --- 收藏 ---
+    // ─── 收藏 ─────────────────────────────────────────────────
     private val _favoriteResponse = MutableLiveData<NetworkResult<Unit>>()
     val favoriteResponse: LiveData<NetworkResult<Unit>> = _favoriteResponse
 
@@ -152,7 +194,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _userResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
             val result = repository.getUser(userId)
-            if (result is NetworkResult.Success) currentUser = result.data
+            if (result is NetworkResult.Success) {
+                currentUser = result.data
+                result.data?.let { user ->
+                    // 更新 TokenManager 中的使用者資訊（保留 token 不變）
+                    val at = tokenManager.getAccessToken() ?: return@let
+                    val rt = tokenManager.getRefreshToken() ?: return@let
+                    tokenManager.saveLoginResult(user, at, rt)
+                }
+                _currentUserLiveData.value = result.data
+            }
             _userResponse.value = result
         }
     }
@@ -178,18 +229,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createUser(name: String, email: String?) {
-        _createUserResponse.value = NetworkResult.Loading()
-        viewModelScope.launch {
-            _createUserResponse.value = repository.createUser(name, email)
-        }
-    }
-
     fun updateUser(id: Int, name: String, email: String?) {
         _updateUserResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
             val result = repository.updateUser(id, name, email)
-            if (result is NetworkResult.Success) currentUser = result.data
+            if (result is NetworkResult.Success) {
+                currentUser = result.data
+                result.data?.let { user ->
+                    val at = tokenManager.getAccessToken() ?: return@let
+                    val rt = tokenManager.getRefreshToken() ?: return@let
+                    tokenManager.saveLoginResult(user, at, rt)
+                }
+                _currentUserLiveData.value = result.data
+            }
             _updateUserResponse.value = result
         }
     }

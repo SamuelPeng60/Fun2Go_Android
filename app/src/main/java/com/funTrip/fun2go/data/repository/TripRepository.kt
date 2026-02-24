@@ -7,6 +7,20 @@ class TripRepository : BaseRepository() {
 
     private val api = RetrofitClient.apiService
 
+    // --- Auth ---
+
+    suspend fun loginWithGoogle(idToken: String) = safeApiCall {
+        api.loginWithGoogle(GoogleAuthRequest(idToken))
+    }
+
+    suspend fun refreshToken(refreshToken: String) = safeApiCall {
+        api.refreshToken(RefreshTokenRequest(refreshToken))
+    }
+
+    suspend fun logout(refreshToken: String) = safeApiCall {
+        api.logout(LogoutRequest(refreshToken))
+    }
+
     // 抓取單個用戶
     suspend fun getUser(userId: Int) = safeApiCall {
         api.getUser(userId)
