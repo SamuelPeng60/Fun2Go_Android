@@ -59,7 +59,7 @@ interface ApiService {
 
     // --- 行程天數 (Itinerary Days) ---
     @POST("api/itineraries/{id}/days")
-    suspend fun addDay(@Path("id") itineraryId: Int): Response<ItineraryDay> // 假設不需要 body，自動加一天
+    suspend fun addDay(@Path("id") itineraryId: Int, @Body request: AddDayRequest): Response<ItineraryDay>
 
     @PUT("api/itineraries/{id}/days/{dayId}")
     suspend fun updateDay(@Path("id") itineraryId: Int, @Path("dayId") dayId: Int, @Body dayData: Map<String, String>): Response<ItineraryDay>

@@ -78,7 +78,9 @@ class TripRepository : BaseRepository() {
 
     // --- Itinerary Days ---
 
-    suspend fun addDay(itineraryId: Int) = safeApiCall { api.addDay(itineraryId) }
+    suspend fun addDay(itineraryId: Int, dayNumber: Int) = safeApiCall {
+        api.addDay(itineraryId, AddDayRequest(dayNumber))
+    }
 
     suspend fun updateDay(itineraryId: Int, dayId: Int, data: Map<String, String>) = safeApiCall {
         api.updateDay(itineraryId, dayId, data)

@@ -23,5 +23,8 @@ data class AddSpotToDayRequest(
 data class FavoriteRequest(val user_id: Int, val spot_id: Int)
 data class UnfavoriteRequest(val user_id: Int) // DELETE body 比較特殊，通常用 Query 或 Path，但你的 API 寫 body
 
+// 新增天數
+data class AddDayRequest(val day_number: Int)
+
 // 排序
 data class ReorderRequest(val spot_ids: List<Int>) // 假設傳送新的 ID 順序陣列

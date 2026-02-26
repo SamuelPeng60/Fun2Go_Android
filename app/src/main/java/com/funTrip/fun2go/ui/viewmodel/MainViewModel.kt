@@ -283,7 +283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun importSpotsToNewItinerary(itineraryId: Int, spots: List<Spot>) {
         _importSpotsResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            val dayId = (repository.addDay(itineraryId) as? NetworkResult.Success)?.data?.id
+            val dayId = (repository.addDay(itineraryId, 1) as? NetworkResult.Success)?.data?.id
                 ?: run { _importSpotsResult.value = NetworkResult.Error("建立天數失敗"); return@launch }
             spots.forEachIndexed { i, spot ->
                 repository.addSpotToDay(dayId, AddSpotToDayRequest(spot.id, i, null, null))
@@ -298,7 +298,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val itinerary = (repository.getItineraryDetail(itineraryId) as? NetworkResult.Success)?.data
                 ?: run { _addSpotToItineraryResult.value = NetworkResult.Error("無法取得行程"); return@launch }
             val dayId: Int = if (itinerary.days.isNullOrEmpty()) {
-                (repository.addDay(itineraryId) as? NetworkResult.Success)?.data?.id
+                (repository.addDay(itineraryId, 1) as? NetworkResult.Success)?.data?.id
                     ?: run { _addSpotToItineraryResult.value = NetworkResult.Error("建立天數失敗"); return@launch }
             } else itinerary.days.last().id
             val orderIndex = itinerary.days?.lastOrNull()?.spots?.size ?: 0
@@ -360,10 +360,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addDay(itineraryId: Int) {
+    fun addDay(itineraryId: Int, dayNumber: Int) {
         _addDayResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _addDayResponse.value = repository.addDay(itineraryId)
+            _addDayResponse.value = repository.addDay(itineraryId, dayNumber)
         }
     }
 

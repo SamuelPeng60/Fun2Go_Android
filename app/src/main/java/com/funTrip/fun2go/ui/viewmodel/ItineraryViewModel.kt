@@ -47,7 +47,8 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     fun addDay(itineraryId: Int) {
         _addDayResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            val result = repository.addDay(itineraryId)
+            val currentDayCount = (_itineraryDetail.value as? NetworkResult.Success)?.data?.days?.size ?: 0
+            val result = repository.addDay(itineraryId, currentDayCount + 1)
             if (result is NetworkResult.Success) {
                 loadItinerary(itineraryId)
                 _addDayResult.value = NetworkResult.Success(Unit)
