@@ -2,6 +2,7 @@ package com.funTrip.fun2go.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -27,6 +28,7 @@ import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
+import com.funTrip.fun2go.ui.ItineraryDetailActivity
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
@@ -47,6 +49,10 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.datepicker.MaterialDatePicker
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -56,6 +62,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // ─── Google Sign-In ────────────────────────────────────────
     private lateinit var googleSignInClient: GoogleSignInClient
     private var loginDialog: BottomSheetDialog? = null
+    private var createItineraryDialog: BottomSheetDialog? = null
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -219,7 +226,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
             .setOnClickListener {
                 requireLogin("登入後即可建立旅遊行程") {
-                    Toast.makeText(this, "新增行程功能開發中", Toast.LENGTH_SHORT).show()
+                    showCreateItinerarySheet()
                 }
             }
 
@@ -499,6 +506,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         }
+
+        // 建立行程結果
+        viewModel.createItineraryResponse.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> { /* 按鈕已在 sheet 內處理 */ }
+                is NetworkResult.Success -> {
+                    createItineraryDialog?.dismiss()
+                    val itinerary = result.data ?: return@observe
+                    val intent = Intent(this, ItineraryDetailActivity::class.java)
+                    intent.putExtra("itinerary_id", itinerary.id)
+                    intent.putExtra("itinerary_title", itinerary.title)
+                    startActivity(intent)
+                }
+                is NetworkResult.Error -> {
+                    // 按鈕重新啟用由 sheet 內的 observer 處理
+                }
+            }
+        }
     }
 
     // ─── 個人資料 BottomSheet ──────────────────────────────────
@@ -603,6 +628,87 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             .addOnFailureListener {
                 Toast.makeText(this, "定位失敗：${it.message}", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    // ─── 新增行程 BottomSheet ──────────────────────────────────
+
+    private fun showCreateItinerarySheet() {
+        if (createItineraryDialog?.isShowing == true) return
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_create_itinerary, null)
+
+        val tilTitle  = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle   = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etStart   = view.findViewById<TextInputEditText>(R.id.etStartDate)
+        val etEnd     = view.findViewById<TextInputEditText>(R.id.etEndDate)
+        val btnCreate = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
+        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
+        val pbCreating = view.findViewById<ProgressBar>(R.id.pbCreating)
+
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        etStart.setOnClickListener {
+            val picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("選擇開始日期")
+                .build()
+            picker.addOnPositiveButtonClickListener { ms ->
+                etStart.setText(dateFormat.format(Date(ms)))
+            }
+            picker.show(supportFragmentManager, "start_date_picker")
+        }
+
+        etEnd.setOnClickListener {
+            val picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("選擇結束日期")
+                .build()
+            picker.addOnPositiveButtonClickListener { ms ->
+                etEnd.setText(dateFormat.format(Date(ms)))
+            }
+            picker.show(supportFragmentManager, "end_date_picker")
+        }
+
+        val createObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.Itinerary>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    btnCreate.isEnabled = false
+                    pbCreating.visibility = View.VISIBLE
+                }
+                is NetworkResult.Success -> {
+                    btnCreate.isEnabled = true
+                    pbCreating.visibility = View.GONE
+                    // dialog dismissed + activity launched by initViewModel observer
+                }
+                is NetworkResult.Error -> {
+                    btnCreate.isEnabled = true
+                    pbCreating.visibility = View.GONE
+                    Toast.makeText(this, "建立失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.createItineraryResponse.observe(this, createObserver)
+
+        btnCreate.setOnClickListener {
+            val title = etTitle.text?.toString()?.trim() ?: ""
+            if (title.isEmpty()) {
+                tilTitle.error = "行程名稱不能為空"
+                return@setOnClickListener
+            }
+            tilTitle.error = null
+            val start = etStart.text?.toString()?.trim() ?: ""
+            val end   = etEnd.text?.toString()?.trim() ?: ""
+            viewModel.createItinerary(title, start, end)
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        dialog.setOnDismissListener {
+            viewModel.createItineraryResponse.removeObserver(createObserver)
+            createItineraryDialog = null
+        }
+
+        createItineraryDialog = dialog
+        dialog.setContentView(view)
+        dialog.show()
     }
 
     private fun showLoading(isLoading: Boolean) {

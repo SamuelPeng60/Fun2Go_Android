@@ -30,6 +30,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.ItineraryDetailActivity"
+            android:label="行程詳情"
+            android:theme="@style/Theme.Fun2Go" />
     </application>
 
 </manifest>
