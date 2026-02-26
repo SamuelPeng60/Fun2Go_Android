@@ -136,6 +136,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _userItinerariesResponse = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItinerariesResponse: LiveData<NetworkResult<List<Itinerary>>> = _userItinerariesResponse
 
+    var cachedUserItineraries: List<Itinerary> = emptyList()
+        private set
+
+    // ─── Feature 2：匯入景點 ──────────────────────────────────
+    private val _importSpotsResult = MutableLiveData<NetworkResult<Unit>>()
+    val importSpotsResult: LiveData<NetworkResult<Unit>> = _importSpotsResult
+
+    // ─── Feature 3：加入景點到現有行程 ────────────────────────
+    private val _addSpotToItineraryResult = MutableLiveData<NetworkResult<Unit>>()
+    val addSpotToItineraryResult: LiveData<NetworkResult<Unit>> = _addSpotToItineraryResult
+
     private val _userFavoritesResponse = MutableLiveData<NetworkResult<List<Spot>>>()
     val userFavoritesResponse: LiveData<NetworkResult<List<Spot>>> = _userFavoritesResponse
 
@@ -263,7 +274,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun fetchUserItineraries(userId: Int) {
         _userItinerariesResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _userItinerariesResponse.value = repository.getUserItineraries(userId)
+            val result = repository.getUserItineraries(userId)
+            if (result is NetworkResult.Success) cachedUserItineraries = result.data ?: emptyList()
+            _userItinerariesResponse.value = result
+        }
+    }
+
+    fun importSpotsToNewItinerary(itineraryId: Int, spots: List<Spot>) {
+        _importSpotsResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val dayId = (repository.addDay(itineraryId) as? NetworkResult.Success)?.data?.id
+                ?: run { _importSpotsResult.value = NetworkResult.Error("建立天數失敗"); return@launch }
+            spots.forEachIndexed { i, spot ->
+                repository.addSpotToDay(dayId, AddSpotToDayRequest(spot.id, i, null, null))
+            }
+            _importSpotsResult.value = NetworkResult.Success(Unit)
+        }
+    }
+
+    fun addSpotToExistingItinerary(itineraryId: Int, spot: Spot) {
+        _addSpotToItineraryResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val itinerary = (repository.getItineraryDetail(itineraryId) as? NetworkResult.Success)?.data
+                ?: run { _addSpotToItineraryResult.value = NetworkResult.Error("無法取得行程"); return@launch }
+            val dayId: Int = if (itinerary.days.isNullOrEmpty()) {
+                (repository.addDay(itineraryId) as? NetworkResult.Success)?.data?.id
+                    ?: run { _addSpotToItineraryResult.value = NetworkResult.Error("建立天數失敗"); return@launch }
+            } else itinerary.days.last().id
+            val orderIndex = itinerary.days?.lastOrNull()?.spots?.size ?: 0
+            val result = repository.addSpotToDay(dayId, AddSpotToDayRequest(spot.id, orderIndex, null, null))
+            _addSpotToItineraryResult.value = when (result) {
+                is NetworkResult.Success -> NetworkResult.Success(Unit)
+                is NetworkResult.Error -> NetworkResult.Error(result.message ?: "Unknown error")
+                else -> NetworkResult.Error("Unknown error")
+            }
         }
     }
 

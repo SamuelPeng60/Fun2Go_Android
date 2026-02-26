@@ -15,6 +15,7 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.ItineraryDayAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 
 class ItineraryDetailActivity : AppCompatActivity() {
@@ -24,6 +25,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
     private lateinit var pbLoading: ProgressBar
     private lateinit var tvEmptyDays: TextView
     private lateinit var rvDays: RecyclerView
+    private lateinit var fabAddDay: FloatingActionButton
     private lateinit var dayAdapter: ItineraryDayAdapter
 
     private var itineraryId: Int = -1
@@ -39,6 +41,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
         pbLoading = findViewById(R.id.pbLoading)
         tvEmptyDays = findViewById(R.id.tvEmptyDays)
         rvDays = findViewById(R.id.rvDays)
+        fabAddDay = findViewById(R.id.fabAddDay)
 
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
@@ -52,6 +55,10 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
+
+        fabAddDay.setOnClickListener {
+            if (itineraryId != -1) viewModel.addDay(itineraryId)
+        }
 
         if (itineraryId != -1) {
             viewModel.loadItinerary(itineraryId)
@@ -113,6 +120,17 @@ class ItineraryDetailActivity : AppCompatActivity() {
                         "載入失敗：${result.message}",
                         Snackbar.LENGTH_LONG
                     ).show()
+                }
+            }
+        }
+
+        viewModel.addDayResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> { /* itineraryDetail observer handles the refresh */ }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    Snackbar.make(toolbar, "新增天數失敗：${result.message}", Snackbar.LENGTH_LONG).show()
                 }
             }
         }

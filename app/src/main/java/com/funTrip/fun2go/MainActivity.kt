@@ -15,6 +15,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
@@ -25,10 +26,12 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.DistanceInfo
+import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
+import com.funTrip.fun2go.ui.ItineraryListActivity
 import com.funTrip.fun2go.ui.adapter.SavedListItem
 import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
@@ -125,6 +128,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var hasLoadedFromDb = false
     private var savedListAdapter: SavedSpotAdapter? = null
 
+    // Feature 2：匯入景點後的目標行程
+    private var pendingNavigationItinerary: Itinerary? = null
+
     private val categoryMap = linkedMapOf(
         "all"          to "全部",
         "attraction"   to "景點",
@@ -149,6 +155,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         initViewModel()
 
         viewModel.fetchAllSpots()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::viewModel.isInitialized && viewModel.isLoggedIn) {
+            viewModel.currentUser?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
+        }
     }
 
     // ─── Google Sign-In 初始化 ─────────────────────────────────
@@ -240,6 +253,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         findViewById<MaterialButton>(R.id.btnMyLocation).setOnClickListener {
             moveToMyLocation()
+        }
+
+        findViewById<ImageButton>(R.id.btnNavExplore).setOnClickListener {
+            requireLogin("登入後即可管理行程") {
+                startActivity(Intent(this, ItineraryListActivity::class.java))
+            }
         }
     }
 
@@ -352,15 +371,34 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         syncButton()
 
         btnAdd.setOnClickListener {
-            if (savedSpots.any { it.id == spot.id }) {
+            val alreadySaved = savedSpots.any { it.id == spot.id }
+            if (alreadySaved) {
                 savedSpots.removeAll { it.id == spot.id }
                 viewModel.removeSavedSpot(spot.id)
-            } else {
-                savedSpots.add(spot)
-                viewModel.addSavedSpot(spot)
+                syncButton()
+                savedListAdapter?.submitList(buildMixedList(null))
+                return@setOnClickListener
             }
-            syncButton()
-            savedListAdapter?.submitList(buildMixedList(null))
+            val itineraries = viewModel.cachedUserItineraries
+            if (viewModel.isLoggedIn && itineraries.isNotEmpty()) {
+                val options = (itineraries.map { it.title } + listOf("＋ 新增行程", "只加入列表")).toTypedArray()
+                AlertDialog.Builder(this)
+                    .setTitle("加入行程")
+                    .setItems(options) { _, which ->
+                        savedSpots.add(spot); viewModel.addSavedSpot(spot)
+                        syncButton(); savedListAdapter?.submitList(buildMixedList(null))
+                        when {
+                            which < itineraries.size ->
+                                viewModel.addSpotToExistingItinerary(itineraries[which].id, spot)
+                            which == itineraries.size ->
+                                requireLogin("登入後即可建立旅遊行程") { showCreateItinerarySheet() }
+                            // else: 只加入列表，已在上面完成
+                        }
+                    }.show()
+            } else {
+                savedSpots.add(spot); viewModel.addSavedSpot(spot)
+                syncButton(); savedListAdapter?.submitList(buildMixedList(null))
+            }
         }
 
         dialog.setContentView(view)
@@ -471,6 +509,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> {
                     showLoading(false)
                     Toast.makeText(this, "歡迎，${result.data?.name}！", Toast.LENGTH_SHORT).show()
+                    result.data?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
@@ -514,14 +553,54 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> {
                     createItineraryDialog?.dismiss()
                     val itinerary = result.data ?: return@observe
-                    val intent = Intent(this, ItineraryDetailActivity::class.java)
-                    intent.putExtra("itinerary_id", itinerary.id)
-                    intent.putExtra("itinerary_title", itinerary.title)
-                    startActivity(intent)
+                    if (savedSpots.isNotEmpty()) {
+                        pendingNavigationItinerary = itinerary
+                        AlertDialog.Builder(this)
+                            .setTitle("匯入景點")
+                            .setMessage("是否將列表中 ${savedSpots.size} 個景點加入「${itinerary.title}」的第一天？")
+                            .setPositiveButton("加入") { _, _ ->
+                                viewModel.importSpotsToNewItinerary(itinerary.id, savedSpots.toList())
+                            }
+                            .setNegativeButton("略過") { _, _ ->
+                                navigateToItineraryDetail(itinerary)
+                                pendingNavigationItinerary = null
+                            }
+                            .show()
+                    } else {
+                        navigateToItineraryDetail(itinerary)
+                    }
                 }
                 is NetworkResult.Error -> {
                     // 按鈕重新啟用由 sheet 內的 observer 處理
                 }
+            }
+        }
+
+        // 匯入景點結果（Feature 2）
+        viewModel.importSpotsResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> showLoading(true)
+                is NetworkResult.Success -> {
+                    showLoading(false)
+                    Toast.makeText(this, "景點已匯入行程！", Toast.LENGTH_SHORT).show()
+                    pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
+                    pendingNavigationItinerary = null
+                }
+                is NetworkResult.Error -> {
+                    showLoading(false)
+                    Toast.makeText(this, "匯入失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
+                    pendingNavigationItinerary = null
+                }
+            }
+        }
+
+        // 加入景點到現有行程結果（Feature 3）
+        viewModel.addSpotToItineraryResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> Unit
+                is NetworkResult.Success -> Toast.makeText(this, "景點已加入行程！", Toast.LENGTH_SHORT).show()
+                is NetworkResult.Error -> Toast.makeText(this, "加入行程失敗：${result.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -709,6 +788,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         createItineraryDialog = dialog
         dialog.setContentView(view)
         dialog.show()
+    }
+
+    private fun navigateToItineraryDetail(itinerary: Itinerary) {
+        val intent = Intent(this, ItineraryDetailActivity::class.java)
+        intent.putExtra("itinerary_id", itinerary.id)
+        intent.putExtra("itinerary_title", itinerary.title)
+        startActivity(intent)
     }
 
     private fun showLoading(isLoading: Boolean) {
