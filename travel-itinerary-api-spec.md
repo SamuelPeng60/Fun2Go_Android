@@ -27,6 +27,11 @@
 - 支援官方推薦行程
 - 行程發佈功能
 - **Google OAuth 登入**（Access Token + Refresh Token，支援真正登出）
+- **安全 Middleware**：Helmet、CORS、Rate Limit、Body Size Limit（v1.3）
+- **資源所有權驗證**：修改/刪除行程僅限擁有者（v1.3）
+- **Health Check**：`GET /health`（v1.3）
+- **包車預訂**：車輛瀏覽 + 建立包車訂單 + 訂單管理（v1.4）
+- **金流系統**：Mock 付款/退款，可擴充至真實支付閘道（v1.4）
 
 ---
 
@@ -55,11 +60,19 @@ JWT_EXPIRES_IN=1h
 REFRESH_TOKEN_EXPIRES_DAYS=30
 ```
 
+### 相依套件（v1.3 新增）
+- `cors` - 跨域資源共享
+- `helmet` - HTTP 安全標頭
+- `express-rate-limit` - API 請求頻率限制
+- `morgan` - HTTP 請求日誌
+
 ### 啟動指令
 
 ```bash
+npm install           # 安裝相依套件
 npm run migrate       # 執行初始資料庫 migration
 npm run migrate:auth  # 執行 Google Auth migration（v1.2）
+npm run migrate:charter # 執行包車 & 金流 migration（v1.4）
 npm start             # 啟動 server (http://localhost:5487)
 npm test              # 執行測試 (Jest + Supertest)
 ```
@@ -82,20 +95,26 @@ fun2Go/
 │   ├── itinerariesController.js
 │   ├── itineraryDaysController.js
 │   ├── itinerarySpotsController.js
-│   └── favoritesController.js
+│   ├── favoritesController.js
+│   ├── vehiclesController.js   # 車輛 CRUD（v1.4 新增）
+│   ├── ordersController.js     # 訂單 CRUD + 取消（v1.4 新增）
+│   └── paymentsController.js   # Mock 付款/退款（v1.4 新增）
 ├── routes/                    # API 路由
 │   ├── auth.js                # /api/auth/*（v1.2 新增）
 │   ├── users.js
 │   ├── spots.js
 │   ├── itineraries.js
 │   ├── itinerarySpots.js
-│   └── favorites.js
+│   ├── favorites.js
+│   ├── vehicles.js             # /api/vehicles/*（v1.4 新增）
+│   └── orders.js               # /api/orders/* + 付款路由（v1.4 新增）
 ├── middleware/
 │   ├── auth.js                # JWT 驗證 middleware（v1.2 新增）
 │   └── errorHandler.js        # 集中式錯誤處理
 ├── migrations/
 │   ├── 001_init.sql           # 資料庫初始化
-│   └── 002_add_google_auth.sql # Google Auth（users.google_id + refresh_tokens）（v1.2 新增）
+│   ├── 002_add_google_auth.sql # Google Auth（users.google_id + refresh_tokens）（v1.2 新增）
+│   └── 003_add_charter_and_payments.sql # 包車 & 金流（vehicles, orders, charter_bookings, payments）（v1.4 新增）
 ├── seeds/
 │   └── seed.sql               # 測試用種子資料（台灣真實景點）
 ├── tests/                     # Jest 測試套件
@@ -105,7 +124,10 @@ fun2Go/
 │   ├── itineraries.test.js
 │   ├── itineraryDays.test.js
 │   ├── itinerarySpots.test.js
-│   └── favorites.test.js
+│   ├── favorites.test.js
+│   ├── vehicles.test.js        # 車輛 CRUD 測試（v1.4 新增）
+│   ├── orders.test.js          # 訂單 CRUD + 取消測試（v1.4 新增）
+│   └── payments.test.js        # 付款/退款測試（v1.4 新增）
 └── docs/
     └── travel-itinerary-api-spec.md
 ```
@@ -176,11 +198,56 @@ fun2Go/
 └─────────────────┘
 ```
 
+### 包車 & 金流模組（v1.4 新增）
+
+```
+┌─────────────────┐
+│    vehicles     │
+│─────────────────│
+│ id (PK)         │
+│ name            │
+│ type            │
+│ capacity        │
+│ price_per_day   │
+│ is_available    │
+└────────┬────────┘
+         │
+         │ 1:N
+         │
+┌────────┴────────┐       ┌─────────────────┐
+│ charter_bookings│       │     orders      │
+│─────────────────│       │─────────────────│
+│ id (PK)         │  1:1  │ id (PK)         │
+│ order_id (FK) ──┼───────┤ user_id (FK)    │──► users
+│ vehicle_id (FK) │       │ itinerary_id(FK)│──► itineraries (nullable)
+│ pickup_location │       │ order_type      │
+│ pickup_time     │       │ status          │
+│ days            │       │ total_amount    │
+│ passenger_count │       └────────┬────────┘
+│ contact_name    │                │
+│ contact_phone   │                │ 1:N
+└─────────────────┘                ▼
+                          ┌─────────────────┐
+                          │    payments     │
+                          │─────────────────│
+                          │ id (PK)         │
+                          │ order_id (FK)   │
+                          │ amount          │
+                          │ method          │
+                          │ status          │
+                          │ transaction_id  │
+                          │ paid_at         │
+                          └─────────────────┘
+```
+
 ### 關聯表
 
 ```
 users ◄──N:M──► spots          (透過 user_favorites)
 users ◄──N:M──► itineraries    (透過 user_itinerary_copies)
+users ──1:N──► orders          (用戶的訂單)
+orders ──1:1──► charter_bookings (包車明細)
+orders ──1:N──► payments       (付款記錄)
 ```
 
 ---
@@ -338,6 +405,83 @@ users ◄──N:M──► itineraries    (透過 user_itinerary_copies)
 
 ---
 
+### 10. `vehicles` - 可預訂車輛（v1.4 新增）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|:----:|--------|------|
+| `id` | SERIAL | ✓ | auto | 主鍵 |
+| `name` | TEXT | ✓ | - | 車輛名稱（如「豪華九人座」） |
+| `type` | TEXT | ✓ | - | 車輛類型（van_9, sedan_4, bus_20） |
+| `capacity` | INTEGER | ✓ | - | 座位數 |
+| `price_per_day` | NUMERIC(10,2) | ✓ | - | 每日價格 |
+| `image_url` | TEXT | - | - | 車輛圖片 |
+| `description` | TEXT | - | - | 車輛描述 |
+| `is_available` | BOOLEAN | - | true | 是否可預訂 |
+| `created_at` | TIMESTAMP | - | now() | 建立時間 |
+
+---
+
+### 11. `orders` - 通用訂單表（v1.4 新增）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|:----:|--------|------|
+| `id` | SERIAL | ✓ | auto | 主鍵 |
+| `user_id` | INTEGER | ✓ | - | 下單用戶 (FK → users，CASCADE) |
+| `itinerary_id` | INTEGER | - | - | 關聯行程 (FK → itineraries，SET NULL)，可選 |
+| `order_type` | TEXT | ✓ | - | 訂單類型（'charter'，未來: 'ticket', 'hotel'） |
+| `status` | TEXT | ✓ | 'pending' | 訂單狀態（pending → confirmed → completed / cancelled） |
+| `total_amount` | NUMERIC(10,2) | ✓ | - | 訂單總金額 |
+| `note` | TEXT | - | - | 訂單備註 |
+| `created_at` | TIMESTAMP | - | now() | 建立時間 |
+| `updated_at` | TIMESTAMP | - | now() | 更新時間（自動觸發） |
+
+**訂單狀態流程：**
+```
+pending ──pay──→ confirmed ──complete──→ completed
+   │                 │
+   └──cancel──→ cancelled ←──refund──┘
+```
+
+---
+
+### 12. `charter_bookings` - 包車訂單明細（v1.4 新增）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|:----:|--------|------|
+| `id` | SERIAL | ✓ | auto | 主鍵 |
+| `order_id` | INTEGER | ✓ | - | 所屬訂單 (FK → orders，CASCADE，UNIQUE) |
+| `vehicle_id` | INTEGER | ✓ | - | 預訂車輛 (FK → vehicles，RESTRICT) |
+| `pickup_location` | TEXT | ✓ | - | 上車地點 |
+| `dropoff_location` | TEXT | - | - | 下車地點 |
+| `pickup_time` | TIMESTAMP | ✓ | - | 上車時間 |
+| `dropoff_time` | TIMESTAMP | - | - | 下車時間 |
+| `days` | INTEGER | ✓ | 1 | 包車天數 |
+| `passenger_count` | INTEGER | ✓ | - | 乘客人數 |
+| `contact_name` | TEXT | ✓ | - | 聯絡人姓名 |
+| `contact_phone` | TEXT | ✓ | - | 聯絡人電話 |
+| `special_requests` | TEXT | - | - | 特殊需求 |
+| `created_at` | TIMESTAMP | - | now() | 建立時間 |
+
+**唯一約束：** `order_id`（1:1 對應 order）
+
+---
+
+### 13. `payments` - 付款記錄（v1.4 新增）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|:----:|--------|------|
+| `id` | SERIAL | ✓ | auto | 主鍵 |
+| `order_id` | INTEGER | ✓ | - | 所屬訂單 (FK → orders，CASCADE) |
+| `amount` | NUMERIC(10,2) | ✓ | - | 金額 |
+| `method` | TEXT | ✓ | 'mock' | 付款方式（'mock'，未來: 'credit_card', 'line_pay'） |
+| `status` | TEXT | ✓ | 'pending' | 付款狀態（pending → paid / refunded / failed） |
+| `transaction_id` | TEXT | - | - | 外部交易 ID（mock 時自動產生 UUID） |
+| `metadata` | JSONB | - | '{}' | 保留給未來閘道回傳資料 |
+| `paid_at` | TIMESTAMP | - | - | 付款時間 |
+| `created_at` | TIMESTAMP | - | now() | 建立時間 |
+
+---
+
 ## 認證機制
 
 ### 流程概覽
@@ -372,6 +516,7 @@ accessToken 過期時：
 
 | 類型 | 路由 | 說明 |
 |------|------|------|
+| 公開 | `GET /health` | Health Check，不需要 Token（v1.3） |
 | 公開 | `GET /api/spots` | 不需要 Token |
 | 公開 | `GET /api/itineraries` | 不需要 Token |
 | 公開 | `GET /api/itineraries/:id` | 不需要 Token |
@@ -380,14 +525,18 @@ accessToken 過期時：
 | 公開 | `GET /api/users/:id/itineraries` | 不需要 Token |
 | 公開 | `GET /api/users/:id/favorites` | 不需要 Token |
 | **需認證** | `POST /api/itineraries` | 需要 Bearer Token |
-| **需認證** | `PUT/DELETE /api/itineraries/:id` | 需要 Bearer Token |
-| **需認證** | `POST /api/itineraries/:id/copy` | 需要 Bearer Token |
-| **需認證** | `POST /api/itineraries/:id/publish` | 需要 Bearer Token |
-| **需認證** | `POST/PUT/DELETE /api/itineraries/:id/days` | 需要 Bearer Token |
-| **需認證** | 所有 `/api/days/:dayId/spots` | 需要 Bearer Token |
+| **需認證+Owner** | `PUT/DELETE /api/itineraries/:id` | 需要 Bearer Token，**僅行程擁有者**（v1.3） |
+| **需認證** | `POST /api/itineraries/:id/copy` | 需要 Bearer Token，自動使用 Token 中的 user_id（v1.3） |
+| **需認證+Owner** | `POST /api/itineraries/:id/publish` | 需要 Bearer Token，**僅行程擁有者**（v1.3） |
+| **需認證+Owner** | `POST/PUT/DELETE /api/itineraries/:id/days` | 需要 Bearer Token，**僅行程擁有者**（v1.3） |
+| **需認證+Owner** | 所有 `/api/days/:dayId/spots` | 需要 Bearer Token，**透過 day→itinerary 驗證擁有者**（v1.3） |
 | **需認證** | `POST /api/spots` | 需要 Bearer Token |
 | **需認證** | `POST/DELETE /api/favorites` | 需要 Bearer Token |
-| **需認證** | `PUT /api/users/:id` | 需要 Bearer Token |
+| **需認證+本人** | `PUT /api/users/:id` | 需要 Bearer Token，**僅能更新自己** (403)（v1.3） |
+| 公開 | `GET /api/vehicles` | 不需要 Token（v1.4） |
+| 公開 | `GET /api/vehicles/:id` | 不需要 Token（v1.4） |
+| **需認證** | `POST/PUT/DELETE /api/vehicles` | 需要 Bearer Token（v1.4） |
+| **需認證+Owner** | 所有 `/api/orders/*` | 需要 Bearer Token，**僅限訂單擁有者**（v1.4） |
 
 > **注意**：`google_id` 欄位為內部欄位，所有 `/api/users` 回應均不包含此欄位。
 >
@@ -396,6 +545,17 @@ accessToken 過期時：
 ---
 
 ## API 端點
+
+### Health Check（v1.3 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| GET | `/health` | 健康檢查 | ❌ | ✅ |
+
+```json
+// Response 200
+{ "status": "ok", "timestamp": "2026-02-27T12:12:13.583Z" }
+```
 
 ### 認證 (Auth)（v1.2 新增）
 
@@ -442,7 +602,7 @@ accessToken 過期時：
 |--------|----------|------|:----:|:----:|
 | POST | `/api/users` | 建立用戶（開發/測試用，上線前應移除） | ❌ | ✅ |
 | GET | `/api/users/:id` | 取得用戶資料 | ❌ | ✅ |
-| PUT | `/api/users/:id` | 更新用戶資料（支援部分更新） | ✅ | ✅ |
+| PUT | `/api/users/:id` | 更新用戶資料（支援部分更新，**僅限本人** v1.3） | ✅ | ✅ |
 | GET | `/api/users/:id/itineraries` | 取得用戶的行程列表 | ❌ | ✅ |
 | GET | `/api/users/:id/favorites` | 取得用戶收藏的景點 | ❌ | ✅ |
 
@@ -450,36 +610,62 @@ accessToken 過期時：
 
 | Method | Endpoint | 說明 | Auth | 狀態 |
 |--------|----------|------|:----:|:----:|
-| GET | `/api/itineraries?limit=20&offset=0` | 列出公開行程（依 copy_count 排序，支援分頁） | ❌ | ✅ |
+| GET | `/api/itineraries?limit=20&offset=0` | 列出公開行程（依 copy_count 排序，limit 上限 100，支援 `&format=v2` 分頁格式 v1.3） | ❌ | ✅ |
 | POST | `/api/itineraries` | 建立新行程 | ✅ | ✅ |
 | GET | `/api/itineraries/:id` | 取得行程詳情（含巢狀天數、景點、作者資訊） | ❌ | ✅ |
-| PUT | `/api/itineraries/:id` | 更新行程基本資料（支援部分更新） | ✅ | ✅ |
-| DELETE | `/api/itineraries/:id` | 刪除行程（CASCADE 刪除天數和景點） | ✅ | ✅ |
-| POST | `/api/itineraries/:id/copy` | 複製行程（含天數、景點完整複製，Transaction） | ✅ | ✅ |
-| POST | `/api/itineraries/:id/publish` | 發佈行程（設定 is_public + published_at） | ✅ | ✅ |
+| PUT | `/api/itineraries/:id` | 更新行程基本資料（支援部分更新，**僅限擁有者** v1.3） | ✅ | ✅ |
+| DELETE | `/api/itineraries/:id` | 刪除行程（CASCADE 刪除天數和景點，**僅限擁有者** v1.3） | ✅ | ✅ |
+| POST | `/api/itineraries/:id/copy` | 複製行程（自動使用 Token user_id，不再需要 body 傳 user_id v1.3） | ✅ | ✅ |
+| POST | `/api/itineraries/:id/publish` | 發佈行程（設定 is_public + published_at，**僅限擁有者** v1.3） | ✅ | ✅ |
+
+**GET /api/itineraries 分頁格式（v1.3）**
+
+```
+# 預設格式（向下相容）：回傳 array
+GET /api/itineraries?limit=20&offset=0
+→ [{ id: 1, title: "..." }, ...]
+
+# v2 格式：回傳含分頁資訊的 object
+GET /api/itineraries?limit=20&offset=0&format=v2
+→ {
+    "data": [{ id: 1, title: "..." }, ...],
+    "pagination": { "total": 50, "limit": 20, "offset": 0 }
+  }
+```
+
+**POST /api/itineraries/:id/copy（v1.3 變更）**
+
+```json
+// v1.2 之前：需要在 body 傳 user_id
+{ "user_id": 123 }
+
+// v1.3 起：自動使用 Token 中的 user_id，body 可為空
+// Authorization: Bearer <token>
+{}
+```
 
 ### 行程天數 (Itinerary Days)
 
 | Method | Endpoint | 說明 | Auth | 狀態 |
 |--------|----------|------|:----:|:----:|
-| POST | `/api/itineraries/:id/days` | 新增一天 | ✅ | ✅ |
-| PUT | `/api/itineraries/:id/days/:dayId` | 更新某天資料 | ✅ | ✅ |
-| DELETE | `/api/itineraries/:id/days/:dayId` | 刪除某天 | ✅ | ✅ |
+| POST | `/api/itineraries/:id/days` | 新增一天（**僅限擁有者** v1.3） | ✅ | ✅ |
+| PUT | `/api/itineraries/:id/days/:dayId` | 更新某天資料（**僅限擁有者** v1.3） | ✅ | ✅ |
+| DELETE | `/api/itineraries/:id/days/:dayId` | 刪除某天（**僅限擁有者** v1.3） | ✅ | ✅ |
 
 ### 行程景點 (Itinerary Spots)
 
 | Method | Endpoint | 說明 | Auth | 狀態 |
 |--------|----------|------|:----:|:----:|
-| POST | `/api/days/:dayId/spots` | 新增景點到某天 | ✅ | ✅ |
-| PUT | `/api/days/:dayId/spots/:spotId` | 更新景點資料（時間、備註） | ✅ | ✅ |
-| DELETE | `/api/days/:dayId/spots/:spotId` | 移除景點 | ✅ | ✅ |
-| PUT | `/api/days/:dayId/spots/reorder` | 重新排序景點（Transaction，負數迴避唯一約束） | ✅ | ✅ |
+| POST | `/api/days/:dayId/spots` | 新增景點到某天（**僅限擁有者** v1.3） | ✅ | ✅ |
+| PUT | `/api/days/:dayId/spots/:spotId` | 更新景點資料（時間、備註）（**僅限擁有者** v1.3） | ✅ | ✅ |
+| DELETE | `/api/days/:dayId/spots/:spotId` | 移除景點（**僅限擁有者** v1.3） | ✅ | ✅ |
+| PUT | `/api/days/:dayId/spots/reorder` | 重新排序景點（批次 CASE 語句優化 v1.3，**僅限擁有者**） | ✅ | ✅ |
 
 ### 景點 (Spots)
 
 | Method | Endpoint | 說明 | Auth | 狀態 |
 |--------|----------|------|:----:|:----:|
-| GET | `/api/spots?keyword=&category=&lat=&lng=&radius=` | 搜尋景點（支援關鍵字 ILIKE、分類、地理位置 Haversine） | ❌ | ✅ |
+| GET | `/api/spots?keyword=&category=&lat=&lng=&radius=` | 搜尋景點（支援關鍵字 ILIKE、分類、地理位置 Haversine，lat/lng/radius 輸入驗證 v1.3） | ❌ | ✅ |
 | GET | `/api/spots/:id` | 取得景點詳情 | ❌ | ✅ |
 | POST | `/api/spots` | 新增景點 | ✅ | ✅ |
 
@@ -489,6 +675,130 @@ accessToken 過期時：
 |--------|----------|------|:----:|:----:|
 | POST | `/api/favorites` | 收藏景點（body: user_id, spot_id） | ✅ | ✅ |
 | DELETE | `/api/favorites/:spotId` | 取消收藏（body: user_id） | ✅ | ✅ |
+
+### 車輛 (Vehicles)（v1.4 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| GET | `/api/vehicles?type=van_9&available=true` | 列出車輛（支援類型、可用性篩選） | ❌ | ✅ |
+| GET | `/api/vehicles/:id` | 取得車輛詳情 | ❌ | ✅ |
+| POST | `/api/vehicles` | 新增車輛（未來限管理員） | ✅ | ✅ |
+| PUT | `/api/vehicles/:id` | 更新車輛（支援部分更新） | ✅ | ✅ |
+| DELETE | `/api/vehicles/:id` | 刪除車輛 | ✅ | ✅ |
+
+**vehicle type 建議值：**
+- `sedan_4` - 四人轎車
+- `van_9` - 九人座
+- `bus_20` - 20人座巴士
+
+### 訂單 (Orders)（v1.4 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/orders` | 建立訂單 + 包車明細（一次完成，自動計算金額） | ✅ | ✅ |
+| GET | `/api/orders?status=pending&limit=20&offset=0` | 我的訂單列表（自動篩 user_id，支援 status 篩選、分頁） | ✅ | ✅ |
+| GET | `/api/orders/:id` | 訂單詳情（含包車明細 + 車輛資訊 + 付款記錄） | ✅ | ✅ |
+| PUT | `/api/orders/:id` | 更新訂單（僅 pending 狀態可改，**僅限擁有者**） | ✅ | ✅ |
+| POST | `/api/orders/:id/cancel` | 取消訂單（僅 pending 狀態，**僅限擁有者**） | ✅ | ✅ |
+
+**POST /api/orders**
+```json
+// Request
+{
+  "order_type": "charter",
+  "itinerary_id": 1,
+  "charter": {
+    "vehicle_id": 2,
+    "pickup_location": "台北車站",
+    "dropoff_location": "九份老街",
+    "pickup_time": "2026-03-15T09:00:00",
+    "days": 1,
+    "passenger_count": 6,
+    "contact_name": "小明",
+    "contact_phone": "0912345678"
+  }
+}
+
+// Response 201
+{
+  "id": 1,
+  "user_id": 1,
+  "itinerary_id": 1,
+  "order_type": "charter",
+  "status": "pending",
+  "total_amount": "5000.00",
+  "charter_booking": {
+    "id": 1,
+    "order_id": 1,
+    "vehicle_id": 2,
+    "pickup_location": "台北車站",
+    "dropoff_location": "九份老街",
+    "pickup_time": "2026-03-15T09:00:00",
+    "days": 1,
+    "passenger_count": 6,
+    "contact_name": "小明",
+    "contact_phone": "0912345678"
+  },
+  "created_at": "..."
+}
+```
+
+**GET /api/orders/:id**（詳情含車輛資訊 + 付款記錄）
+```json
+{
+  "id": 1,
+  "status": "confirmed",
+  "total_amount": "5000.00",
+  "charter_booking": {
+    "vehicle_name": "豪華九人座",
+    "vehicle_type": "van_9",
+    "vehicle_capacity": 9,
+    "pickup_location": "台北車站",
+    "..."
+  },
+  "payments": [
+    { "id": 1, "amount": "5000.00", "status": "paid", "transaction_id": "mock_xxx", "..." }
+  ]
+}
+```
+
+### 付款 (Payments)（v1.4 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/orders/:id/pay` | Mock 付款（立即成功，order → confirmed） | ✅ | ✅ |
+| GET | `/api/orders/:id/payments` | 該訂單的付款紀錄 | ✅ | ✅ |
+| POST | `/api/orders/:id/refund` | Mock 退款（僅限 confirmed 狀態，order → cancelled） | ✅ | ✅ |
+
+**POST /api/orders/:id/pay**
+```json
+// Response 200
+{
+  "id": 1,
+  "order_id": 1,
+  "amount": "5000.00",
+  "method": "mock",
+  "status": "paid",
+  "transaction_id": "mock_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "paid_at": "2026-03-01T10:30:00.000Z",
+  "created_at": "..."
+}
+```
+
+**POST /api/orders/:id/refund**
+```json
+// Response 200
+{
+  "id": 2,
+  "order_id": 1,
+  "amount": "5000.00",
+  "method": "mock",
+  "status": "refunded",
+  "transaction_id": "mock_refund_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "paid_at": "2026-03-02T14:00:00.000Z",
+  "created_at": "..."
+}
+```
 
 ---
 
@@ -502,11 +812,13 @@ accessToken 過期時：
 
 | HTTP 狀態碼 | 說明 | 範例場景 |
 |:-----------:|------|----------|
-| 400 | 缺少必填欄位 | 建立用戶缺少 name、建立行程缺少 title、auth 缺少 id_token |
+| 400 | 缺少必填欄位 / 輸入驗證失敗 | 缺少 name、title、id_token；lat/lng/radius 超出範圍（v1.3）；FK 違反；型別驗證失敗（非整數/非正數）；無效 JSON body；無效 input 格式（PG 22P02）；CHECK 約束違反（PG 23514） |
 | 401 | 未授權 | 未帶 Token、Token 無效或過期 |
-| 404 | 資源不存在 | 查詢不存在的用戶、行程、景點 |
+| 403 | 禁止操作（v1.3） | 修改/刪除他人行程、更新他人用戶資料 |
+| 404 | 資源不存在 | 查詢不存在的用戶、行程、景點；嘗試操作非自己的行程也回 404（避免洩漏資源存在） |
 | 409 | 資源衝突（重複） | 重複收藏、重複 day_number、重複 order_index |
-| 500 | 伺服器內部錯誤 | 資料庫連線失敗等非預期錯誤 |
+| 429 | 請求過於頻繁（v1.3） | 超過 Rate Limit（每 IP 15 分鐘 300 次） |
+| 500 | 伺服器內部錯誤 | 資料庫連線失敗等非預期錯誤（production 不洩漏 stack trace） |
 
 ---
 
@@ -530,6 +842,7 @@ psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f seeds/seed.sql
 | 景點間交通 | 5 | 步行、大眾運輸，含距離公里數 |
 | 用戶收藏 | 8 | 各用戶收藏的景點 |
 | 複製記錄 | 1 | 小美複製小明的台北三日遊 |
+| 車輛 | 3 | 豪華九人座、舒適轎車、中型巴士（v1.4） |
 
 ---
 
@@ -545,20 +858,26 @@ psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f seeds/seed.sql
 npm test
 ```
 
-### 測試覆蓋（6 套件 / 56 測試）
+### 測試覆蓋（9 套件 / 107 測試）
 
 | 測試套件 | 測試數 | 覆蓋範圍 |
 |----------|:------:|----------|
-| users.test.js | 8 | CRUD、404、部分更新、空列表 |
-| spots.test.js | 8 | CRUD、關鍵字搜尋、分類搜尋、地理位置搜尋、複合搜尋、404 |
-| itineraries.test.js | 12 | CRUD、分頁、巢狀查詢、複製(含驗證)、發佈、排序、400/404 |
+| users.test.js | 9 | CRUD、404、部分更新、空列表、**所有權驗證 (403)** |
+| spots.test.js | 11 | CRUD、關鍵字搜尋、分類搜尋、地理位置搜尋、複合搜尋、404、**lat/lng/radius 輸入驗證** |
+| itineraries.test.js | 15 | CRUD、分頁（含 v2 格式）、巢狀查詢、複製(含驗證)、發佈、排序、400/404、**所有權驗證** |
 | itineraryDays.test.js | 5 | 新增/更新/刪除、400/404/409 |
 | itinerarySpots.test.js | 8 | 新增/更新/刪除/排序、400/404/409 |
 | favorites.test.js | 5 | 收藏/取消收藏、400/404/409 |
+| vehicles.test.js | 13 | CRUD、類型篩選、可用性篩選、401/404、**負數 capacity/price_per_day 驗證**（v1.4） |
+| orders.test.js | 19 | 建立/列表/詳情/更新/取消、金額計算、行程關聯、容量驗證（含更新時）、分頁、**所有權驗證 (403)**、狀態限制、**型別驗證**（v1.4） |
+| payments.test.js | 11 | Mock 付款/退款、狀態轉換驗證、付款紀錄列表、**所有權驗證 (403)**、重複付款防止（v1.4） |
+
+> 所有測試已更新為包含 JWT Token（v1.3），確保 Protected 路由在測試中也通過認證。
 
 ### 已修復的 Bug
 
 - **地理位置搜尋**：原本使用 `HAVING` 搭配 `SELECT *` 在 PostgreSQL 會報錯（缺少 `GROUP BY`），已改為子查詢 (subquery) 方式過濾 `distance_km`
+- **權限漏洞（v1.3）**：任何已登入用戶可修改/刪除他人行程，已加入資源所有權驗證
 
 ---
 
@@ -709,9 +1028,29 @@ ORDER BY isp.order_index;
 
 5. **索引**：已建立常用查詢的索引，如需額外索引請評估查詢模式
 
-6. **景點重排序**：使用負數暫存策略避免唯一約束衝突（先設為負數，再設回正確值）
+6. **景點重排序**：使用負數暫存策略避免唯一約束衝突，v1.3 優化為批次 CASE 語句（2 次 SQL 取代 2N 次）
 
-7. **地理搜尋**：使用 Haversine 公式計算球面距離，預設搜尋半徑 10km
+7. **地理搜尋**：使用 Haversine 公式計算球面距離，預設搜尋半徑 10km，v1.3 加入 lat(-90~90)、lng(-180~180)、radius(0~500) 輸入驗證
+
+8. **安全 Middleware（v1.3）**：
+   - `helmet` — HTTP 安全標頭（X-Content-Type-Options, X-Frame-Options 等）
+   - `cors` — 跨域資源共享（預設允許所有 origin）
+   - `express-rate-limit` — 每 IP 15 分鐘 300 次請求上限（v1.4 從 100 調高，回傳 JSON 格式錯誤）
+   - `express.json({ limit: '10kb' })` — Request body 大小限制
+   - `morgan('combined')` — HTTP 請求日誌（test 環境停用）
+   - 未知路由統一回傳 `404 JSON`（v1.4，確保 mobile client 收到 JSON）
+
+9. **資源所有權驗證（v1.3）**：修改/刪除行程及其子資源時，server 端驗證 `req.user.id` 與資源的 `user_id` 是否一致。行程操作直接在 SQL WHERE 加 `user_id` 條件；天數/景點操作透過 JOIN 鏈（day → itinerary → user_id）驗證
+
+10. **過期 Token 清理（v1.3）**：登入和 refresh 時順便清除該用戶的過期 refresh token，避免 DB 堆積
+
+11. **訂單並發安全（v1.4）**：訂單更新（update）和取消（cancel）使用 `BEGIN` + `SELECT ... FOR UPDATE` 防止與同時間的付款/退款操作產生 race condition。車輛查詢在建立訂單時也使用 `FOR UPDATE` 確保價格一致性
+
+12. **型別安全（v1.4）**：所有 ownership 比對使用 `Number()` 強制轉型（JWT payload 可能為 string），避免 `===` 比較失敗。車輛/訂單欄位（capacity、price_per_day、passenger_count、days）在 controller 層做完整型別驗證（typeof + 正數 + 整數）
+
+13. **錯誤處理強化（v1.4）**：errorHandler 新增 PG 22P02（無效 input syntax，如非數字 ID）→ 400、PG 23514（CHECK 約束違反）→ 400、`entity.parse.failed`（無效 JSON body）→ 400。所有錯誤一律回傳 `{ "error": "..." }` JSON 格式
+
+14. **車輛刪除保護（v1.4）**：刪除車輛前檢查是否有既存包車訂單（charter_bookings），有則回傳 400 阻止刪除
 
 ---
 
@@ -722,3 +1061,6 @@ ORDER BY isp.order_index;
 | 1.0 | 2026-01-20 | 初版：資料表結構與 API 端點規劃 |
 | 1.1 | 2026-01-30 | 所有 API 實作完成、56 項測試通過、Seed 資料、Bug 修復（地理搜尋查詢）、Port 改為 5487 |
 | 1.2 | 2026-02-24 | Google OAuth 登入、Access Token + Refresh Token、路由保護（protected/public 分離）、users.google_id、refresh_tokens 表、migration 002 |
+| 1.3 | 2026-02-27 | **安全性強化**：Helmet/CORS/Rate Limit/Body Limit middleware、資源所有權驗證（行程/天數/景點僅 owner 可改刪）、用戶僅能更新自己、輸入驗證（lat/lng/radius/limit/offset）。**API 品質**：Health Check (`GET /health`)、Morgan 日誌、分頁 v2 格式（`?format=v2`）、PG 錯誤碼統一處理。**程式碼優化**：Copy 改用 Token user_id、Reorder 批次 CASE 語句、過期 Refresh Token 自動清理。測試 56→61 項（含所有權驗證測試、JWT Token 整合）。所有變更向下相容。 |
+| 1.4 | 2026-02-27 | **包車預訂**：vehicles（車輛管理 CRUD）、orders（通用訂單表，支援 charter 類型，可擴充 ticket/hotel）、charter_bookings（包車明細 1:1 訂單）。**金流系統**：payments（Mock 付款/退款，transaction_id 自動產生 UUID）、訂單狀態流轉（pending→confirmed→completed/cancelled）。**訂單功能**：自動計算金額（vehicle.price_per_day × days）、乘客容量驗證、可選行程關聯（itinerary_id nullable）、所有權驗證。Migration 003、3 輛範例車輛 seed。測試 61→103 項。 |
+| 1.4.1 | 2026-02-27 | **Production Hardening**：Rate Limit 100→300（JSON 格式回應）、404 catch-all JSON handler、errorHandler 新增 PG 22P02/23514/entity.parse.failed。**並發安全**：訂單 update/cancel 加入 Transaction + FOR UPDATE、車輛建單 FOR UPDATE。**型別安全**：ownership 比對 `Number()` 轉型、controller 層完整型別驗證（capacity/price/passenger_count/days）。**訂單 API**：新增分頁（limit/offset）、更新時容量驗證、列表回傳巢狀 charter_booking。**車輛刪除保護**：檢查既存訂單。DB CHECK 約束（capacity>0, price>0, days>0 等）。測試 103→107 項。 |
