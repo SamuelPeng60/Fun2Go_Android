@@ -43,7 +43,7 @@ class TripRepository : BaseRepository() {
 
     // 建立行程
     suspend fun createItinerary(title: String, start: String, end: String) = safeApiCall {
-        api.createItinerary(ItineraryRequest(title, start, end))
+        api.createItinerary(ItineraryRequest(title, start.ifEmpty { null }, end.ifEmpty { null }))
     }
 
     // --- Users ---

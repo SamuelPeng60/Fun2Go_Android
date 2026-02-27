@@ -2,6 +2,7 @@ package com.funTrip.fun2go.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
@@ -80,7 +81,12 @@ class ItineraryListActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val userId = viewModel.currentUser?.id
-        if (userId != null) {
+        Log.d("ILA_DEBUG", "onResume: userId=$userId")
+        if (userId == null) {
+            finish()
+            return
+        }
+        if (userId > 0) {
             viewModel.fetchUserItineraries(userId)
         }
     }
@@ -95,6 +101,8 @@ class ItineraryListActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.userItineraries.observe(this) { result ->
+            Log.d("ILA_DEBUG", "userItineraries: ${result::class.simpleName}" +
+                if (result is NetworkResult.Success) " count=${result.data?.size}" else "")
             when (result) {
                 is NetworkResult.Loading -> {
                     pbLoading.visibility = View.VISIBLE
@@ -105,6 +113,7 @@ class ItineraryListActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val list = result.data ?: emptyList()
                     if (list.isEmpty()) {
+                        tvEmpty.text = "尚無行程，點 ＋ 建立第一個行程"
                         tvEmpty.visibility = View.VISIBLE
                         rvItineraries.visibility = View.GONE
                     } else {
@@ -114,7 +123,10 @@ class ItineraryListActivity : AppCompatActivity() {
                     }
                 }
                 is NetworkResult.Error -> {
+                    Log.d("ILA_DEBUG", "userItineraries Error: ${result.message}")
                     pbLoading.visibility = View.GONE
+                    tvEmpty.text = "載入失敗，請重新整理"
+                    tvEmpty.visibility = View.VISIBLE
                     Snackbar.make(toolbar, "載入失敗：${result.message}", Snackbar.LENGTH_LONG).show()
                 }
             }
@@ -126,20 +138,19 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_itinerary, null)
 
-        val tilTitle  = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle   = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etStart   = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val etEnd     = view.findViewById<TextInputEditText>(R.id.etEndDate)
-        val btnCreate = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
-        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
+        val tilTitle   = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle    = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etStart    = view.findViewById<TextInputEditText>(R.id.etStartDate)
+        val etEnd      = view.findViewById<TextInputEditText>(R.id.etEndDate)
+        val btnCreate  = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
+        val btnCancel  = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
         val pbCreating = view.findViewById<ProgressBar>(R.id.pbCreating)
 
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
         etStart.setOnClickListener {
             val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇開始日期")
-                .build()
+                .setTitleText("選擇開始日期").build()
             picker.addOnPositiveButtonClickListener { ms ->
                 etStart.setText(dateFormat.format(Date(ms)))
             }
@@ -148,31 +159,42 @@ class ItineraryListActivity : AppCompatActivity() {
 
         etEnd.setOnClickListener {
             val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇結束日期")
-                .build()
+                .setTitleText("選擇結束日期").build()
             picker.addOnPositiveButtonClickListener { ms ->
                 etEnd.setText(dateFormat.format(Date(ms)))
             }
             picker.show(supportFragmentManager, "create_end_date_picker")
         }
 
+        // hasStarted：防止 LiveData sticky 把舊的 Success/Error 立刻送進來
+        // navigated：防止 Success 被處理兩次
+        var hasStarted = false
+        var navigated = false
+
         val createObserver = Observer<NetworkResult<Itinerary>> { result ->
             when (result) {
                 is NetworkResult.Loading -> {
+                    hasStarted = true
                     btnCreate.isEnabled = false
                     pbCreating.visibility = View.VISIBLE
                 }
                 is NetworkResult.Success -> {
+                    if (!hasStarted || navigated) return@Observer  // 忽略 stale cached 值
+                    navigated = true
                     btnCreate.isEnabled = true
                     pbCreating.visibility = View.GONE
                     val itinerary = result.data ?: return@Observer
+                    Log.d("ILA_DEBUG", "create Success itinerary.id=${itinerary.id}")
                     dialog.dismiss()
-                    val intent = Intent(this, ItineraryDetailActivity::class.java)
-                    intent.putExtra("itinerary_id", itinerary.id)
-                    intent.putExtra("itinerary_title", itinerary.title)
-                    startActivity(intent)
+                    startActivity(
+                        Intent(this, ItineraryDetailActivity::class.java).apply {
+                            putExtra("itinerary_id", itinerary.id)
+                            putExtra("itinerary_title", itinerary.title)
+                        }
+                    )
                 }
                 is NetworkResult.Error -> {
+                    if (!hasStarted) return@Observer  // 忽略 stale cached 值
                     btnCreate.isEnabled = true
                     pbCreating.visibility = View.GONE
                     Snackbar.make(view, "建立失敗：${result.message}", Snackbar.LENGTH_LONG).show()
@@ -210,12 +232,12 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_edit_itinerary, null)
 
-        val tilTitle  = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle   = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etStart   = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val etEnd     = view.findViewById<TextInputEditText>(R.id.etEndDate)
-        val btnUpdate = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
-        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
+        val tilTitle   = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle    = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etStart    = view.findViewById<TextInputEditText>(R.id.etStartDate)
+        val etEnd      = view.findViewById<TextInputEditText>(R.id.etEndDate)
+        val btnUpdate  = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
+        val btnCancel  = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
         val pbUpdating = view.findViewById<ProgressBar>(R.id.pbUpdating)
 
         etTitle.setText(itinerary.title)
@@ -226,8 +248,7 @@ class ItineraryListActivity : AppCompatActivity() {
 
         etStart.setOnClickListener {
             val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇開始日期")
-                .build()
+                .setTitleText("選擇開始日期").build()
             picker.addOnPositiveButtonClickListener { ms ->
                 etStart.setText(dateFormat.format(Date(ms)))
             }
@@ -236,28 +257,34 @@ class ItineraryListActivity : AppCompatActivity() {
 
         etEnd.setOnClickListener {
             val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇結束日期")
-                .build()
+                .setTitleText("選擇結束日期").build()
             picker.addOnPositiveButtonClickListener { ms ->
                 etEnd.setText(dateFormat.format(Date(ms)))
             }
             picker.show(supportFragmentManager, "edit_end_date_picker")
         }
 
+        // hasStarted：防止 LiveData sticky 把舊的 Success 立刻送進來（避免 dialog 一開就關）
+        var hasStarted = false
+
         val updateObserver = Observer<NetworkResult<Itinerary>> { result ->
             when (result) {
                 is NetworkResult.Loading -> {
+                    hasStarted = true
                     btnUpdate.isEnabled = false
                     pbUpdating.visibility = View.VISIBLE
                 }
                 is NetworkResult.Success -> {
+                    if (!hasStarted) return@Observer  // 忽略 stale cached 值
                     btnUpdate.isEnabled = true
                     pbUpdating.visibility = View.GONE
                     dialog.dismiss()
-                    val userId = viewModel.currentUser?.id
-                    if (userId != null) viewModel.fetchUserItineraries(userId)
+                    viewModel.currentUser?.id?.takeIf { it > 0 }?.let {
+                        viewModel.fetchUserItineraries(it)
+                    }
                 }
                 is NetworkResult.Error -> {
+                    if (!hasStarted) return@Observer  // 忽略 stale cached 值
                     btnUpdate.isEnabled = true
                     pbUpdating.visibility = View.GONE
                     Snackbar.make(view, "更新失敗：${result.message}", Snackbar.LENGTH_LONG).show()

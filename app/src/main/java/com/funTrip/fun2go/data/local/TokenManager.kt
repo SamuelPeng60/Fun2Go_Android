@@ -43,8 +43,12 @@ class TokenManager private constructor(context: Context) {
     }
 
     fun saveGoogleAccount(user: User) {
+        // Preserve the existing backend user id (>0) so list fetches still work
+        // while loginWithGoogle is in-flight. The real id is confirmed by saveLoginResult().
+        val existingId = getSavedUser()?.id ?: 0
+        val merged = if (existingId > 0) user.copy(id = existingId) else user
         prefs.edit()
-            .putString("user_json", gson.toJson(user))
+            .putString("user_json", gson.toJson(merged))
             .apply()
     }
 

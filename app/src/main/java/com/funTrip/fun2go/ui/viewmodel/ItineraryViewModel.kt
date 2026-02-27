@@ -5,12 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.funTrip.fun2go.data.local.AppDatabase
+import com.funTrip.fun2go.data.local.SavedSpotEntity
 import com.funTrip.fun2go.data.local.TokenManager
+import com.funTrip.fun2go.data.model.AddSpotToDayRequest
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.ItineraryRequest
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
+import android.util.Log
 import kotlinx.coroutines.launch
 
 class ItineraryViewModel(application: Application) : AndroidViewModel(application) {
@@ -20,7 +24,11 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
 
     val currentUser: User? get() = tokenManager.getSavedUser()
 
-    // ─── Itinerary Detail (used by ItineraryDetailActivity) ───
+    // ─── Saved Spots (for spot picker) ────────────────────────────────────
+    val savedSpots: LiveData<List<SavedSpotEntity>> =
+        AppDatabase.getDatabase(application).savedSpotDao().getAllSavedSpots()
+
+    // ─── Itinerary Detail (used by ItineraryDetailActivity) ───────────────
     private val _itineraryDetail = MutableLiveData<NetworkResult<Itinerary>>()
     val itineraryDetail: LiveData<NetworkResult<Itinerary>> = _itineraryDetail
 
@@ -29,6 +37,9 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _addDayResult = MutableLiveData<NetworkResult<Unit>>()
     val addDayResult: LiveData<NetworkResult<Unit>> = _addDayResult
+
+    private val _spotOperationResult = MutableLiveData<NetworkResult<Unit>>()
+    val spotOperationResult: LiveData<NetworkResult<Unit>> = _spotOperationResult
 
     fun loadItinerary(id: Int) {
         _itineraryDetail.value = NetworkResult.Loading()
@@ -60,7 +71,40 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    // ─── User Itinerary List (used by ItineraryListActivity) ──
+    fun addSpotToDay(itineraryId: Int, dayId: Int, spotId: Int, orderIndex: Int) {
+        _spotOperationResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.addSpotToDay(
+                dayId,
+                AddSpotToDayRequest(spotId, orderIndex, null, null)
+            )
+            if (result is NetworkResult.Success) {
+                loadItinerary(itineraryId)
+                _spotOperationResult.value = NetworkResult.Success(Unit)
+            } else {
+                _spotOperationResult.value = NetworkResult.Error(
+                    (result as? NetworkResult.Error)?.message ?: "新增景點失敗"
+                )
+            }
+        }
+    }
+
+    fun removeSpotFromDay(itineraryId: Int, dayId: Int, itinerarySpotId: Int) {
+        _spotOperationResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.removeSpotFromDay(dayId, itinerarySpotId)
+            if (result is NetworkResult.Success) {
+                loadItinerary(itineraryId)
+                _spotOperationResult.value = NetworkResult.Success(Unit)
+            } else {
+                _spotOperationResult.value = NetworkResult.Error(
+                    (result as? NetworkResult.Error)?.message ?: "移除景點失敗"
+                )
+            }
+        }
+    }
+
+    // ─── User Itinerary List (used by ItineraryListActivity) ──────────────
     private val _userItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItineraries: LiveData<NetworkResult<List<Itinerary>>> = _userItineraries
 
@@ -71,9 +115,13 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     val updateResult: LiveData<NetworkResult<Itinerary>> = _updateResult
 
     fun fetchUserItineraries(userId: Int) {
+        Log.d("ILA_DEBUG", "ViewModel.fetchUserItineraries: userId=$userId")
         _userItineraries.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _userItineraries.value = repository.getUserItineraries(userId)
+            val result = repository.getUserItineraries(userId)
+            Log.d("ILA_DEBUG", "ViewModel.fetchUserItineraries result: ${result::class.simpleName}" +
+                    if (result is NetworkResult.Success) ", count=${result.data?.size}" else ", msg=${(result as? NetworkResult.Error)?.message}")
+            _userItineraries.value = result
         }
     }
 

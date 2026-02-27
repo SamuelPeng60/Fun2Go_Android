@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var googleSignInClient: GoogleSignInClient
     private var loginDialog: BottomSheetDialog? = null
     private var createItineraryDialog: BottomSheetDialog? = null
+    private var createItineraryHandled = false
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -549,8 +550,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // 建立行程結果
         viewModel.createItineraryResponse.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> { /* 按鈕已在 sheet 內處理 */ }
+                is NetworkResult.Loading -> {
+                    createItineraryHandled = false
+                }
                 is NetworkResult.Success -> {
+                    if (createItineraryHandled) return@observe
+                    createItineraryHandled = true
                     createItineraryDialog?.dismiss()
                     val itinerary = result.data ?: return@observe
                     if (savedSpots.isNotEmpty()) {

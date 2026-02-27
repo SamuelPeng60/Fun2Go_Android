@@ -5,6 +5,7 @@
 - [環境設定](#環境設定)
 - [ER 關係圖](#er-關係圖)
 - [資料表結構](#資料表結構)
+- [認證機制](#認證機制)
 - [API 端點](#api-端點)
 - [錯誤處理](#錯誤處理)
 - [Seed 資料](#seed-資料)
@@ -25,6 +26,7 @@
 - 用戶可收藏景點、複製他人公開行程
 - 支援官方推薦行程
 - 行程發佈功能
+- **Google OAuth 登入**（Access Token + Refresh Token，支援真正登出）
 
 ---
 
@@ -38,20 +40,28 @@
 ### 環境變數 (.env)
 
 ```env
+# 資料庫
 DB_USER=dbmasteruser
 DB_HOST=<your-db-host>
 DB_NAME=postgres
 DB_PASSWORD=<your-db-password>
 DB_PORT=5432
 PORT=5487
+
+# Google OAuth & JWT（v1.2 新增）
+GOOGLE_CLIENT_ID=<your-google-client-id>.apps.googleusercontent.com
+JWT_SECRET=<random-64-char-hex>
+JWT_EXPIRES_IN=1h
+REFRESH_TOKEN_EXPIRES_DAYS=30
 ```
 
 ### 啟動指令
 
 ```bash
-npm run migrate     # 執行資料庫 migration
-npm start           # 啟動 server (http://localhost:5487)
-npm test            # 執行測試 (Jest + Supertest)
+npm run migrate       # 執行初始資料庫 migration
+npm run migrate:auth  # 執行 Google Auth migration（v1.2）
+npm start             # 啟動 server (http://localhost:5487)
+npm test              # 執行測試 (Jest + Supertest)
 ```
 
 ---
@@ -66,6 +76,7 @@ fun2Go/
 ├── package.json
 ├── .env
 ├── controllers/               # 商業邏輯層
+│   ├── authController.js      # Google 登入、refresh、logout（v1.2 新增）
 │   ├── usersController.js
 │   ├── spotsController.js
 │   ├── itinerariesController.js
@@ -73,15 +84,18 @@ fun2Go/
 │   ├── itinerarySpotsController.js
 │   └── favoritesController.js
 ├── routes/                    # API 路由
+│   ├── auth.js                # /api/auth/*（v1.2 新增）
 │   ├── users.js
 │   ├── spots.js
 │   ├── itineraries.js
 │   ├── itinerarySpots.js
 │   └── favorites.js
 ├── middleware/
+│   ├── auth.js                # JWT 驗證 middleware（v1.2 新增）
 │   └── errorHandler.js        # 集中式錯誤處理
 ├── migrations/
-│   └── 001_init.sql           # 資料庫初始化
+│   ├── 001_init.sql           # 資料庫初始化
+│   └── 002_add_google_auth.sql # Google Auth（users.google_id + refresh_tokens）（v1.2 新增）
 ├── seeds/
 │   └── seed.sql               # 測試用種子資料（台灣真實景點）
 ├── tests/                     # Jest 測試套件
@@ -101,13 +115,14 @@ fun2Go/
 ## ER 關係圖
 
 ```
-┌─────────────────┐
-│     users       │
-│─────────────────│
-│ id (PK)         │
-│ name            │
-│ email           │
-│ avatar_url      │
+┌─────────────────┐       ┌─────────────────┐
+│     users       │       │ refresh_tokens  │
+│─────────────────│       │─────────────────│
+│ id (PK)         │──1:N─►│ id (PK)         │
+│ name            │       │ user_id (FK)    │
+│ email           │       │ token           │
+│ avatar_url      │       │ expires_at      │
+│ google_id       │       └─────────────────┘
 └────────┬────────┘
          │
          │ 1:N
@@ -180,6 +195,7 @@ users ◄──N:M──► itineraries    (透過 user_itinerary_copies)
 | `name` | TEXT | ✓ | - | 用戶名稱 |
 | `email` | TEXT | - | - | 電子郵件（唯一） |
 | `avatar_url` | TEXT | - | - | 頭像網址 |
+| `google_id` | TEXT | - | - | Google 帳號 ID（唯一，v1.2 新增，不對外回傳） |
 | `created_at` | TIMESTAMP | - | now() | 建立時間 |
 
 ---
@@ -308,61 +324,171 @@ users ◄──N:M──► itineraries    (透過 user_itinerary_copies)
 
 ---
 
+### 9. `refresh_tokens` - Refresh Token（v1.2 新增）
+
+| 欄位 | 類型 | 必填 | 預設值 | 說明 |
+|------|------|:----:|--------|------|
+| `id` | SERIAL | ✓ | auto | 主鍵 |
+| `user_id` | INTEGER | ✓ | - | 用戶 (FK → users，CASCADE) |
+| `token` | TEXT | ✓ | - | Refresh Token（唯一） |
+| `expires_at` | TIMESTAMP | ✓ | - | 到期時間（預設 30 天） |
+| `created_at` | TIMESTAMP | - | now() | 建立時間 |
+
+**唯一約束：** `token`
+
+---
+
+## 認證機制
+
+### 流程概覽
+
+```
+Android App
+  └─► Google Sign-In SDK → 取得 id_token
+        └─► POST /api/auth/google { id_token }
+              └─► 後端驗證 → 找或建立 User
+                    └─► 回傳 { user, accessToken, refreshToken }
+
+之後每個 API 請求：
+  Authorization: Bearer <accessToken>
+
+accessToken 過期時：
+  POST /api/auth/refresh { refreshToken }
+    └─► 回傳新的 { accessToken, refreshToken }（舊 refreshToken 立即失效）
+
+登出：
+  POST /api/auth/logout { refreshToken }
+    └─► 刪除 DB 中的 refreshToken
+```
+
+### Token 規格
+
+| Token | 演算法 | 有效期 | 說明 |
+|-------|--------|--------|------|
+| Access Token | JWT (HS256) | 1 小時 | 每次 API 請求帶在 Header |
+| Refresh Token | Random Hex (80 chars) | 30 天 | 儲存於 DB，用於換新 Token |
+
+### 路由保護規則
+
+| 類型 | 路由 | 說明 |
+|------|------|------|
+| 公開 | `GET /api/spots` | 不需要 Token |
+| 公開 | `GET /api/itineraries` | 不需要 Token |
+| 公開 | `GET /api/itineraries/:id` | 不需要 Token |
+| 公開 | `GET /api/spots/:id` | 不需要 Token |
+| 公開 | `GET /api/users/:id` | 不需要 Token |
+| 公開 | `GET /api/users/:id/itineraries` | 不需要 Token |
+| 公開 | `GET /api/users/:id/favorites` | 不需要 Token |
+| **需認證** | `POST /api/itineraries` | 需要 Bearer Token |
+| **需認證** | `PUT/DELETE /api/itineraries/:id` | 需要 Bearer Token |
+| **需認證** | `POST /api/itineraries/:id/copy` | 需要 Bearer Token |
+| **需認證** | `POST /api/itineraries/:id/publish` | 需要 Bearer Token |
+| **需認證** | `POST/PUT/DELETE /api/itineraries/:id/days` | 需要 Bearer Token |
+| **需認證** | 所有 `/api/days/:dayId/spots` | 需要 Bearer Token |
+| **需認證** | `POST /api/spots` | 需要 Bearer Token |
+| **需認證** | `POST/DELETE /api/favorites` | 需要 Bearer Token |
+| **需認證** | `PUT /api/users/:id` | 需要 Bearer Token |
+
+> **注意**：`google_id` 欄位為內部欄位，所有 `/api/users` 回應均不包含此欄位。
+>
+> **上線前待辦**：`POST /api/users` 目前為公開端點，僅供開發/測試用。正式環境用戶應透過 `POST /api/auth/google` 建立，上線前請移除此 route（`routes/users.js` 第一行）。
+
+---
+
 ## API 端點
+
+### 認證 (Auth)（v1.2 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/auth/google` | Google 登入，回傳 accessToken + refreshToken | ❌ | ✅ |
+| POST | `/api/auth/refresh` | 換新 Token（Rotation，舊 refreshToken 立即失效） | ❌ | ✅ |
+| POST | `/api/auth/logout` | 登出，刪除 refreshToken | ❌ | ✅ |
+
+**POST /api/auth/google**
+```json
+// Request
+{ "id_token": "Google 回傳的 JWT" }
+
+// Response 200
+{
+  "user": { "id": 1, "name": "王小明", "email": "...", "avatar_url": "..." },
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "a3f8c2..."
+}
+```
+
+**POST /api/auth/refresh**
+```json
+// Request
+{ "refreshToken": "a3f8c2..." }
+
+// Response 200
+{ "accessToken": "eyJhbGci...", "refreshToken": "b9d1e4..." }
+```
+
+**POST /api/auth/logout**
+```json
+// Request
+{ "refreshToken": "a3f8c2..." }
+
+// Response 200
+{ "message": "Logged out" }
+```
 
 ### 用戶 (Users)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| POST | `/api/users` | 建立用戶 | ✅ |
-| GET | `/api/users/:id` | 取得用戶資料 | ✅ |
-| PUT | `/api/users/:id` | 更新用戶資料（支援部分更新） | ✅ |
-| GET | `/api/users/:id/itineraries` | 取得用戶的行程列表 | ✅ |
-| GET | `/api/users/:id/favorites` | 取得用戶收藏的景點 | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/users` | 建立用戶（開發/測試用，上線前應移除） | ❌ | ✅ |
+| GET | `/api/users/:id` | 取得用戶資料 | ❌ | ✅ |
+| PUT | `/api/users/:id` | 更新用戶資料（支援部分更新） | ✅ | ✅ |
+| GET | `/api/users/:id/itineraries` | 取得用戶的行程列表 | ❌ | ✅ |
+| GET | `/api/users/:id/favorites` | 取得用戶收藏的景點 | ❌ | ✅ |
 
 ### 行程 (Itineraries)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| GET | `/api/itineraries?limit=20&offset=0` | 列出公開行程（依 copy_count 排序，支援分頁） | ✅ |
-| POST | `/api/itineraries` | 建立新行程 | ✅ |
-| GET | `/api/itineraries/:id` | 取得行程詳情（含巢狀天數、景點、作者資訊） | ✅ |
-| PUT | `/api/itineraries/:id` | 更新行程基本資料（支援部分更新） | ✅ |
-| DELETE | `/api/itineraries/:id` | 刪除行程（CASCADE 刪除天數和景點） | ✅ |
-| POST | `/api/itineraries/:id/copy` | 複製行程（含天數、景點完整複製，Transaction） | ✅ |
-| POST | `/api/itineraries/:id/publish` | 發佈行程（設定 is_public + published_at） | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| GET | `/api/itineraries?limit=20&offset=0` | 列出公開行程（依 copy_count 排序，支援分頁） | ❌ | ✅ |
+| POST | `/api/itineraries` | 建立新行程 | ✅ | ✅ |
+| GET | `/api/itineraries/:id` | 取得行程詳情（含巢狀天數、景點、作者資訊） | ❌ | ✅ |
+| PUT | `/api/itineraries/:id` | 更新行程基本資料（支援部分更新） | ✅ | ✅ |
+| DELETE | `/api/itineraries/:id` | 刪除行程（CASCADE 刪除天數和景點） | ✅ | ✅ |
+| POST | `/api/itineraries/:id/copy` | 複製行程（含天數、景點完整複製，Transaction） | ✅ | ✅ |
+| POST | `/api/itineraries/:id/publish` | 發佈行程（設定 is_public + published_at） | ✅ | ✅ |
 
 ### 行程天數 (Itinerary Days)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| POST | `/api/itineraries/:id/days` | 新增一天 | ✅ |
-| PUT | `/api/itineraries/:id/days/:dayId` | 更新某天資料 | ✅ |
-| DELETE | `/api/itineraries/:id/days/:dayId` | 刪除某天 | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/itineraries/:id/days` | 新增一天 | ✅ | ✅ |
+| PUT | `/api/itineraries/:id/days/:dayId` | 更新某天資料 | ✅ | ✅ |
+| DELETE | `/api/itineraries/:id/days/:dayId` | 刪除某天 | ✅ | ✅ |
 
 ### 行程景點 (Itinerary Spots)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| POST | `/api/days/:dayId/spots` | 新增景點到某天 | ✅ |
-| PUT | `/api/days/:dayId/spots/:spotId` | 更新景點資料（時間、備註） | ✅ |
-| DELETE | `/api/days/:dayId/spots/:spotId` | 移除景點 | ✅ |
-| PUT | `/api/days/:dayId/spots/reorder` | 重新排序景點（Transaction，負數迴避唯一約束） | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/days/:dayId/spots` | 新增景點到某天 | ✅ | ✅ |
+| PUT | `/api/days/:dayId/spots/:spotId` | 更新景點資料（時間、備註） | ✅ | ✅ |
+| DELETE | `/api/days/:dayId/spots/:spotId` | 移除景點 | ✅ | ✅ |
+| PUT | `/api/days/:dayId/spots/reorder` | 重新排序景點（Transaction，負數迴避唯一約束） | ✅ | ✅ |
 
 ### 景點 (Spots)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| GET | `/api/spots?keyword=&category=&lat=&lng=&radius=` | 搜尋景點（支援關鍵字 ILIKE、分類、地理位置 Haversine） | ✅ |
-| GET | `/api/spots/:id` | 取得景點詳情 | ✅ |
-| POST | `/api/spots` | 新增景點 | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| GET | `/api/spots?keyword=&category=&lat=&lng=&radius=` | 搜尋景點（支援關鍵字 ILIKE、分類、地理位置 Haversine） | ❌ | ✅ |
+| GET | `/api/spots/:id` | 取得景點詳情 | ❌ | ✅ |
+| POST | `/api/spots` | 新增景點 | ✅ | ✅ |
 
 ### 收藏 (Favorites)
 
-| Method | Endpoint | 說明 | 狀態 |
-|--------|----------|------|:----:|
-| POST | `/api/favorites` | 收藏景點（body: user_id, spot_id） | ✅ |
-| DELETE | `/api/favorites/:spotId` | 取消收藏（body: user_id） | ✅ |
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/favorites` | 收藏景點（body: user_id, spot_id） | ✅ | ✅ |
+| DELETE | `/api/favorites/:spotId` | 取消收藏（body: user_id） | ✅ | ✅ |
 
 ---
 
@@ -376,7 +502,8 @@ users ◄──N:M──► itineraries    (透過 user_itinerary_copies)
 
 | HTTP 狀態碼 | 說明 | 範例場景 |
 |:-----------:|------|----------|
-| 400 | 缺少必填欄位 | 建立用戶缺少 name、建立行程缺少 title |
+| 400 | 缺少必填欄位 | 建立用戶缺少 name、建立行程缺少 title、auth 缺少 id_token |
+| 401 | 未授權 | 未帶 Token、Token 無效或過期 |
 | 404 | 資源不存在 | 查詢不存在的用戶、行程、景點 |
 | 409 | 資源衝突（重複） | 重複收藏、重複 day_number、重複 order_index |
 | 500 | 伺服器內部錯誤 | 資料庫連線失敗等非預期錯誤 |
@@ -594,3 +721,4 @@ ORDER BY isp.order_index;
 |------|------|------|
 | 1.0 | 2026-01-20 | 初版：資料表結構與 API 端點規劃 |
 | 1.1 | 2026-01-30 | 所有 API 實作完成、56 項測試通過、Seed 資料、Bug 修復（地理搜尋查詢）、Port 改為 5487 |
+| 1.2 | 2026-02-24 | Google OAuth 登入、Access Token + Refresh Token、路由保護（protected/public 分離）、users.google_id、refresh_tokens 表、migration 002 |

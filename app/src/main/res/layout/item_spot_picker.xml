@@ -2,40 +2,29 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="16dp">
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
 
-    <!-- 天數 badge -->
-    <TextView
-        android:id="@+id/tvDayNumber"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:background="@drawable/circle_shape"
-        android:backgroundTint="#F44062"
-        android:gravity="center"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <!-- 日期 + 景點數 -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/tvDayDate"
+            android:id="@+id/tvPickerSpotName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#333333"
             android:textSize="14sp" />
 
         <TextView
-            android:id="@+id/tvSpotCount"
+            android:id="@+id/tvPickerSpotCategory"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
@@ -44,11 +33,9 @@
 
     </LinearLayout>
 
-    <!-- 展開箭頭 -->
     <ImageView
-        android:id="@+id/ivChevron"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
         android:src="@drawable/ic_chevron_right" />
 
 </LinearLayout>
