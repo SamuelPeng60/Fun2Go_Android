@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // ─── UI ────────────────────────────────────────────────────
     private lateinit var progressBar: ProgressBar
     private lateinit var tvWelcome: TextView
-    private lateinit var ivUserAvatar: ImageView
+    private lateinit var btnNavProfile: ImageButton
     private lateinit var btnRefreshUser: ImageButton
     private lateinit var chipGroup: LinearLayout
 
@@ -212,11 +212,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun initViews() {
         progressBar    = findViewById(R.id.progressBar)
         tvWelcome      = findViewById(R.id.tvWelcome)
-        ivUserAvatar   = findViewById(R.id.ivUserAvatar)
+        btnNavProfile  = findViewById(R.id.btnNavProfile)
         btnRefreshUser = findViewById(R.id.btnRefreshUser)
         chipGroup      = findViewById(R.id.chipGroup)
 
-        ivUserAvatar.setOnClickListener {
+        btnNavProfile.setOnClickListener {
             if (viewModel.isLoggedIn) {
                 showProfileBottomSheet()
             } else {
@@ -489,17 +489,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (user != null) {
                 tvWelcome.text = user.name
                 if (!user.avatarUrl.isNullOrEmpty()) {
-                    ivUserAvatar.load(user.avatarUrl) {
+                    btnNavProfile.load(user.avatarUrl) {
                         transformations(CircleCropTransformation())
-                        placeholder(android.R.drawable.sym_def_app_icon)
-                        error(android.R.drawable.sym_def_app_icon)
+                        error(R.drawable.ic_google_logo)
                     }
                 } else {
-                    ivUserAvatar.setImageResource(android.R.drawable.sym_def_app_icon)
+                    btnNavProfile.setImageResource(R.drawable.ic_google_logo)
                 }
             } else {
                 tvWelcome.text = "遊客"
-                ivUserAvatar.setImageResource(android.R.drawable.sym_def_app_icon)
+                btnNavProfile.setImageResource(R.drawable.ic_google_logo)
             }
         }
 
