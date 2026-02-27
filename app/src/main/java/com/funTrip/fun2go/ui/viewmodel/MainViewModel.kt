@@ -10,7 +10,6 @@ import com.funTrip.fun2go.data.local.TokenManager
 import com.funTrip.fun2go.data.local.toEntity
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
-import com.funTrip.fun2go.data.remote.RetrofitClient
 import com.funTrip.fun2go.data.repository.TripRepository
 import kotlinx.coroutines.launch
 import kotlin.math.*
@@ -22,10 +21,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ─── TokenManager ─────────────────────────────────────────
     val tokenManager: TokenManager = TokenManager.getInstance(application)
 
-    init {
-        // 讓 RetrofitClient 的 interceptor 能取得 token
-        RetrofitClient.tokenManager = tokenManager
-    }
+    // RetrofitClient.tokenManager 由 App.kt onCreate 統一注入，此處無需重複設定
 
     val isLoggedIn: Boolean get() = tokenManager.isLoggedIn()
 
