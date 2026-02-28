@@ -1,6 +1,7 @@
 package com.funTrip.fun2go.data.repository
 
 import com.funTrip.fun2go.data.model.*
+import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.remote.RetrofitClient
 
 class TripRepository : BaseRepository() {
@@ -42,8 +43,16 @@ class TripRepository : BaseRepository() {
     }
 
     // 建立行程
-    suspend fun createItinerary(title: String, start: String, end: String) = safeApiCall {
-        api.createItinerary(ItineraryRequest(title, start.ifEmpty { null }, end.ifEmpty { null }))
+    suspend fun createItinerary(title: String, start: String, end: String): NetworkResult<Itinerary> {
+        val result = safeApiCall {
+            api.createItinerary(ItineraryRequest(title, start.ifEmpty { null }, end.ifEmpty { null }))
+        }
+        // 後端 bug 防護：行程建立成功但 user_id=null → 無法新增天數(403)
+        // 直接回傳錯誤，不讓 UI 導航到無法管理的行程
+        if (result is NetworkResult.Success && (result.data?.author_id ?: 0) == 0) {
+            return NetworkResult.Error("行程建立異常：伺服器未能設置擁有者，請重新嘗試")
+        }
+        return result
     }
 
     // --- Users ---

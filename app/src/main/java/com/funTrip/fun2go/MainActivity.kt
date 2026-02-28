@@ -200,10 +200,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     /** 需要登入才能執行的操作 */
     private fun requireLogin(desc: String = "登入後即可使用此功能", action: () -> Unit) {
-        if (viewModel.isLoggedIn) {
-            action()
-        } else {
-            showLoginBottomSheet(desc)
+        when {
+            !viewModel.isLoggedIn -> showLoginBottomSheet(desc)
+            !viewModel.hasValidToken -> Toast.makeText(this, "正在登入中，請稍候...", Toast.LENGTH_SHORT).show()
+            else -> action()
         }
     }
 

@@ -72,7 +72,13 @@ class ItineraryListActivity : AppCompatActivity() {
         rvItineraries.layoutManager = LinearLayoutManager(this)
         rvItineraries.adapter = adapter
 
-        fabAdd.setOnClickListener { showCreateSheet() }
+        fabAdd.setOnClickListener {
+            if (viewModel.hasValidToken) {
+                showCreateSheet()
+            } else {
+                Snackbar.make(toolbar, "正在登入中，請稍候...", Snackbar.LENGTH_SHORT).show()
+            }
+        }
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()

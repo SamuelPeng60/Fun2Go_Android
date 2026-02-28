@@ -24,6 +24,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // RetrofitClient.tokenManager 由 App.kt onCreate 統一注入，此處無需重複設定
 
     val isLoggedIn: Boolean get() = tokenManager.isLoggedIn()
+    val hasValidToken: Boolean get() = tokenManager.getAccessToken() != null
 
     // ─── 當前用戶（LiveData 驅動 Header UI）──────────────────
     var currentUser: User? = tokenManager.getSavedUser()

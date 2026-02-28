@@ -18,7 +18,6 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.ItineraryDayAdapter
 import com.funTrip.fun2go.ui.adapter.SpotPickerAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
-import android.util.Log
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -68,7 +67,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         fabAddDay.setOnClickListener {
             if (itineraryId != -1) {
-                Log.d("IDA_DEBUG", "addDay: itineraryId=$itineraryId, currentUser=${viewModel.currentUser?.id}")
                 viewModel.addDay(itineraryId)
             }
         }
@@ -109,7 +107,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val itinerary = result.data
                     if (itinerary != null) {
-                        Log.d("IDA_DEBUG", "loadItinerary Success: id=${itinerary.id}, author_id=${itinerary.author_id}, currentUserId=${viewModel.currentUser?.id}")
                         supportActionBar?.title = itinerary.title
                         val days = itinerary.days ?: emptyList()
                         if (days.isEmpty()) {
@@ -140,7 +137,9 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 is NetworkResult.Success -> { /* itineraryDetail observer 負責 refresh */ }
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
-                    Snackbar.make(toolbar, "新增天數失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    val msg = if (result.message?.contains("Forbidden", ignoreCase = true) == true)
+                        "此行程不屬於您，無法新增天數" else "新增天數失敗：${result.message}"
+                    Snackbar.make(toolbar, msg, Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -151,7 +150,9 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 is NetworkResult.Success -> pbLoading.visibility = View.GONE
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
-                    Snackbar.make(toolbar, result.message ?: "操作失敗", Snackbar.LENGTH_LONG).show()
+                    val msg = if (result.message?.contains("Forbidden", ignoreCase = true) == true)
+                        "此行程不屬於您，無法修改景點" else result.message ?: "操作失敗"
+                    Snackbar.make(toolbar, msg, Snackbar.LENGTH_LONG).show()
                 }
             }
         }

@@ -23,6 +23,7 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     private val tokenManager = TokenManager.getInstance(application)
 
     val currentUser: User? get() = tokenManager.getSavedUser()
+    val hasValidToken: Boolean get() = tokenManager.getAccessToken() != null
 
     // ─── Saved Spots (for spot picker) ────────────────────────────────────
     val savedSpots: LiveData<List<SavedSpotEntity>> =
