@@ -8,6 +8,8 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -718,8 +720,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val tilTitle    = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilItineraryTitle)
         val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
         val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+
+        val destinations = resources.getStringArray(R.array.destinations)
+        actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
+        actvDest.setOnClickListener { actvDest.showDropDown() }
         val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
         val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
         val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
@@ -751,7 +757,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val dest      = etDest.text?.toString()?.trim()
+            val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
             viewModel.createItinerary(title, totalDays, dest)
         }

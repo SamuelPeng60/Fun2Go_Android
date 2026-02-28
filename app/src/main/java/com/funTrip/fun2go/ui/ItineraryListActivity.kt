@@ -22,6 +22,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 
@@ -142,11 +144,15 @@ class ItineraryListActivity : AppCompatActivity() {
 
         val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
         val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
         val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
         val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
         val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
         val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
+
+        val destinations = resources.getStringArray(R.array.destinations)
+        actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
+        actvDest.setOnClickListener { actvDest.showDropDown() }
 
         // hasStarted：防止 LiveData sticky 把舊的 Success/Error 立刻送進來
         // navigated：防止 Success 被處理兩次
@@ -192,7 +198,7 @@ class ItineraryListActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val dest      = etDest.text?.toString()?.trim()
+            val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
             viewModel.createItinerary(title, totalDays, dest)
         }
@@ -216,14 +222,18 @@ class ItineraryListActivity : AppCompatActivity() {
 
         val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
         val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
         val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
         val btnUpdate   = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
         val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
         val pbUpdating  = view.findViewById<ProgressBar>(R.id.pbUpdating)
 
+        val destinations = resources.getStringArray(R.array.destinations)
+        actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
+        actvDest.setOnClickListener { actvDest.showDropDown() }
+
         etTitle.setText(itinerary.title)
-        etDest.setText(itinerary.destination ?: "")
+        actvDest.setText(itinerary.destination ?: "", false)
         etTotalDays.setText(if (itinerary.total_days > 0) itinerary.total_days.toString() else "")
 
         // hasStarted：防止 LiveData sticky 把舊的 Success 立刻送進來（避免 dialog 一開就關）
@@ -262,7 +272,7 @@ class ItineraryListActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val dest      = etDest.text?.toString()?.trim()
+            val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
             viewModel.updateItinerary(itinerary.id, title, totalDays, dest)
         }
