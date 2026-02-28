@@ -41,6 +41,8 @@
 | bottom_sheet_login.xml | `app/src/main/res/layout/bottom_sheet_login.xml` |
 | bottom_sheet_edit_itinerary.xml | `app/src/main/res/layout/bottom_sheet_edit_itinerary.xml` |
 | item_itinerary.xml | `app/src/main/res/layout/item_itinerary.xml` |
+| bottom_sheet_create_edit_spot.xml | `app/src/main/res/layout/bottom_sheet_create_edit_spot.xml` |
+| BaseRepository | `app/src/main/java/com/funTrip/fun2go/data/repository/BaseRepository.kt` |
 | API Key（不進 git）| `local.properties` → `MAPS_API_KEY=...` |
 
 ---
@@ -176,12 +178,28 @@ sealed class SavedListItem {
 
 ---
 
+### 11. 自訂景點建立 / 編輯 / 刪除（v1.6）
+- **長按地圖** → `requireLogin` → `showCreateSpotSheet(latLng)`（`bottom_sheet_create_edit_spot.xml`）
+  - 預填緯度 / 經度；分類 ExposedDropdownMenu；是否公開 SwitchMaterial（預設 off）
+  - 按「儲存」→ `viewModel.createSpot(SpotRequest)` → `POST /api/spots`
+  - 成功後直接將 API response 的 Spot 加入 `allSpots` + `filterAndPlaceMarkers()`（**不呼叫** `fetchAllSpots()`，避免 id=0 問題）
+- **景點詳情 Sheet** 新增擁有者操作列（`llOwnerActions`，預設 GONE）
+  - 判斷條件：`spot.creatorId != null && spot.creatorId == currentUser?.id`
+  - `btnEditSpot` → `showEditSpotSheet(spot)`：預填所有欄位，PUT 後直接以 response 更新 `allSpots`
+  - `btnDeleteSpot` → `confirmDeleteSpot(spot, dialog)`：AlertDialog 確認 → `viewModel.deleteSpot(spot.id)` → 成功後從 `allSpots` 移除 + `filterAndPlaceMarkers()` + 若在 savedSpots 也一併移除
+- 新增 `SpotRequest` data class（`ApiRequests.kt`）
+- `ApiService`：`PUT api/spots/{id}` / `DELETE api/spots/{id}`；`createSpot` 改接 `SpotRequest`
+- `MainViewModel`：`updateSpotResult` / `deleteSpotResult` LiveData + 對應方法
+- 新增 Drawable：`ic_edit.xml`（鉛筆）、`ic_delete.xml`（垃圾桶）
+
+---
+
 ## 已知待完成功能
-- 行程天數內的景點管理（目前 ItineraryDayAdapter 僅顯示天數，無景點列表）
 - 底部導航「聊天」頁面
-- 行程列表頁在重新進入時有時不顯示已建立的行程（疑似 userId=0 邊緣情況，待確認）
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤
 - `GET /api/users/{id}/itineraries` 用 userId 查詢，userId 須為後端真實 ID（> 0）
 - `RetrofitClient.tokenManager` 由 `MainViewModel.init` 注入，`ItineraryViewModel` 共用同一 singleton
+- `GET /api/spots` 回傳的 user-created spot 可能缺少 `"id"` 欄位（後端問題），Gson 會將 `val id: Int` 設為 0 → 建立/編輯後不呼叫 `fetchAllSpots()`，改以 POST/PUT response 直接更新 `allSpots`
+- `DELETE /api/spots/{id}` 成功回傳 **204 No Content**（無 body）；已修復 `BaseRepository.safeApiCall` 的 204 處理：`body()=null` 時改回傳 `NetworkResult.Success(Unit)` 而非 Error
