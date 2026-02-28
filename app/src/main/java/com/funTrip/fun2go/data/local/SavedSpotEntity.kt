@@ -15,7 +15,17 @@ data class SavedSpotEntity(
     val image_url: String? = null,
     val rating: Double? = null
 ) {
-    fun toSpot() = Spot(id, name, category, latitude, longitude, address, image_url, null, rating)
+    fun toSpot() = Spot(
+        id = id, name = name, category = category,
+        latitude = latitude, longitude = longitude,
+        address = address, image_url = image_url,
+        rating = rating
+    )
 }
 
-fun Spot.toEntity() = SavedSpotEntity(id, name, category, latitude, longitude, address, image_url, rating)
+fun Spot.toEntity() = SavedSpotEntity(
+    id = id, name = name, category = category,
+    latitude = latitude, longitude = longitude,
+    address = address, image_url = image_url,
+    rating = rating
+)
