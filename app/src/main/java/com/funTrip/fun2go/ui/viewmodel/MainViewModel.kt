@@ -203,6 +203,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _createSpotResponse = MutableLiveData<NetworkResult<Spot>>()
     val createSpotResponse: LiveData<NetworkResult<Spot>> = _createSpotResponse
 
+    private val _updateSpotResult = MutableLiveData<NetworkResult<Spot>>()
+    val updateSpotResult: LiveData<NetworkResult<Spot>> = _updateSpotResult
+
+    private val _deleteSpotResult = MutableLiveData<NetworkResult<Unit>>()
+    val deleteSpotResult: LiveData<NetworkResult<Unit>> = _deleteSpotResult
+
     // ─── 收藏 ─────────────────────────────────────────────────
     private val _favoriteResponse = MutableLiveData<NetworkResult<Unit>>()
     val favoriteResponse: LiveData<NetworkResult<Unit>> = _favoriteResponse
@@ -413,10 +419,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createSpot(spot: Spot) {
+    fun createSpot(req: SpotRequest) {
         _createSpotResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _createSpotResponse.value = repository.createSpot(spot)
+            _createSpotResponse.value = repository.createSpot(req)
+        }
+    }
+
+    fun updateSpot(id: Int, req: SpotRequest) {
+        _updateSpotResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _updateSpotResult.value = repository.updateSpot(id, req)
+        }
+    }
+
+    fun deleteSpot(id: Int) {
+        _deleteSpotResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _deleteSpotResult.value = repository.deleteSpot(id)
         }
     }
 

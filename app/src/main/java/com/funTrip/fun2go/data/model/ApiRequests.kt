@@ -28,3 +28,14 @@ data class AddDayRequest(val day_number: Int)
 
 // 排序
 data class ReorderRequest(val spot_ids: List<Int>) // 假設傳送新的 ID 順序陣列
+
+// 建立/更新 景點
+data class SpotRequest(
+    val name: String,
+    val category: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val address: String? = null,
+    val image_url: String? = null,
+    val is_public: Boolean = false
+)

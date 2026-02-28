@@ -124,7 +124,11 @@ class TripRepository : BaseRepository() {
 
     suspend fun getSpotDetail(id: Int) = safeApiCall { api.getSpotDetail(id) }
 
-    suspend fun createSpot(spot: Spot) = safeApiCall { api.createSpot(spot) }
+    suspend fun createSpot(req: SpotRequest) = safeApiCall { api.createSpot(req) }
+
+    suspend fun updateSpot(id: Int, req: SpotRequest) = safeApiCall { api.updateSpot(id, req) }
+
+    suspend fun deleteSpot(id: Int): NetworkResult<Unit> = safeApiCall { api.deleteSpot(id) }
 
     // --- Favorites ---
 

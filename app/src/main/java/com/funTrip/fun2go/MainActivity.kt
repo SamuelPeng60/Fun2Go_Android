@@ -30,6 +30,7 @@ import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.Spot
+import com.funTrip.fun2go.data.model.SpotRequest
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
@@ -306,6 +307,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             true
         }
 
+        googleMap.setOnMapLongClickListener { latLng ->
+            requireLogin("登入後即可新增自訂景點") {
+                showCreateSpotSheet(latLng)
+            }
+        }
+
         if (hasLocationPermission()) {
             enableMyLocation()
         } else {
@@ -354,6 +361,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (spot.rating != null) {
             tvRating.text = "★ ${spot.rating}"
             tvRating.visibility = View.VISIBLE
+        }
+
+        // 擁有者操作列：僅建立者可見
+        val currentUserId = viewModel.currentUser?.id
+        if (spot.creatorId != null && currentUserId != null && spot.creatorId == currentUserId) {
+            view.findViewById<LinearLayout>(R.id.llOwnerActions).visibility = View.VISIBLE
+            view.findViewById<ImageButton>(R.id.btnEditSpot).setOnClickListener {
+                dialog.dismiss()
+                showEditSpotSheet(spot)
+            }
+            view.findViewById<ImageButton>(R.id.btnDeleteSpot).setOnClickListener {
+                confirmDeleteSpot(spot, dialog)
+            }
         }
 
         val btnAdd = view.findViewById<MaterialButton>(R.id.btnAddToList)
@@ -605,6 +625,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Error -> Toast.makeText(this, "加入行程失敗：${result.message}", Toast.LENGTH_SHORT).show()
             }
         }
+
+        // 刪除景點結果（全域觀察，用於 confirmDeleteSpot）
+        viewModel.deleteSpotResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> showLoading(true)
+                is NetworkResult.Success -> showLoading(false)
+                is NetworkResult.Error -> {
+                    showLoading(false)
+                    Toast.makeText(this, "刪除失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     // ─── 個人資料 BottomSheet ──────────────────────────────────
@@ -772,6 +804,198 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         createItineraryDialog = dialog
         dialog.setContentView(view)
         dialog.show()
+    }
+
+    // ─── 建立/編輯景點 ─────────────────────────────────────────
+
+    private fun showCreateSpotSheet(latLng: LatLng) {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_create_edit_spot, null)
+
+        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = "新增景點"
+
+        val etLat = view.findViewById<TextInputEditText>(R.id.etSpotLat)
+        val etLng = view.findViewById<TextInputEditText>(R.id.etSpotLng)
+        etLat.setText("%.6f".format(latLng.latitude))
+        etLng.setText("%.6f".format(latLng.longitude))
+
+        setupSpotCategoryDropdown(view)
+
+        val btnSave   = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
+        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
+        val pb        = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+
+        var hasStarted = false
+        val observer = Observer<NetworkResult<Spot>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    hasStarted = true
+                    btnSave.isEnabled = false
+                    pb.visibility = View.VISIBLE
+                }
+                is NetworkResult.Success -> if (hasStarted) {
+                    hasStarted = false
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    dialog.dismiss()
+                    // 直接用 POST response 的 spot（含正確 ID）加入 allSpots
+                    // 避免呼叫 fetchAllSpots()，因為 GET /api/spots 可能回傳 id=null 導致 id=0
+                    result.data?.let { newSpot ->
+                        allSpots = allSpots + newSpot
+                        filterAndPlaceMarkers()
+                    }
+                    Toast.makeText(this, "景點已建立", Toast.LENGTH_SHORT).show()
+                }
+                is NetworkResult.Error -> if (hasStarted) {
+                    hasStarted = false
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    Toast.makeText(this, "建立失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.createSpotResponse.observe(this, observer)
+
+        btnSave.setOnClickListener {
+            val req = buildSpotRequest(view) ?: return@setOnClickListener
+            viewModel.createSpot(req)
+        }
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        dialog.setOnDismissListener { viewModel.createSpotResponse.removeObserver(observer) }
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    private fun showEditSpotSheet(spot: Spot) {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_create_edit_spot, null)
+
+        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = "編輯景點"
+
+        view.findViewById<TextInputEditText>(R.id.etSpotName).setText(spot.name)
+        view.findViewById<TextInputEditText>(R.id.etSpotAddress).setText(spot.address ?: "")
+        view.findViewById<TextInputEditText>(R.id.etSpotLat).setText(spot.latitude ?: "")
+        view.findViewById<TextInputEditText>(R.id.etSpotLng).setText(spot.longitude ?: "")
+        view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchSpotPublic).isChecked = spot.isPublic
+
+        val actvCategory = view.findViewById<AutoCompleteTextView>(R.id.actvSpotCategory)
+        setupSpotCategoryDropdown(view)
+        // 預填分類顯示名稱
+        actvCategory.setText(categoryMap[spot.category] ?: spot.category ?: "", false)
+
+        val btnSave   = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
+        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
+        val pb        = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+
+        var hasStarted = false
+        val observer = Observer<NetworkResult<Spot>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    hasStarted = true
+                    btnSave.isEnabled = false
+                    pb.visibility = View.VISIBLE
+                }
+                is NetworkResult.Success -> if (hasStarted) {
+                    hasStarted = false
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    dialog.dismiss()
+                    // 直接用 PUT response 的 spot 更新 allSpots（保留正確 ID）
+                    result.data?.let { updatedSpot ->
+                        allSpots = allSpots.map { if (it.id == updatedSpot.id) updatedSpot else it }
+                        filterAndPlaceMarkers()
+                    }
+                    Toast.makeText(this, "景點已更新", Toast.LENGTH_SHORT).show()
+                }
+                is NetworkResult.Error -> if (hasStarted) {
+                    hasStarted = false
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    Toast.makeText(this, "更新失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.updateSpotResult.observe(this, observer)
+
+        btnSave.setOnClickListener {
+            val req = buildSpotRequest(view) ?: return@setOnClickListener
+            viewModel.updateSpot(spot.id, req)
+        }
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        dialog.setOnDismissListener { viewModel.updateSpotResult.removeObserver(observer) }
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    private fun confirmDeleteSpot(spot: Spot, parentDialog: BottomSheetDialog) {
+        AlertDialog.Builder(this)
+            .setTitle("刪除景點")
+            .setMessage("確定要刪除「${spot.name}」嗎？")
+            .setPositiveButton("刪除") { _, _ ->
+                viewModel.deleteSpot(spot.id)
+                // 觀察結果：成功後關閉父 Sheet 並刷新地圖
+                val observer = object : Observer<NetworkResult<Unit>> {
+                    override fun onChanged(result: NetworkResult<Unit>) {
+                        if (result is NetworkResult.Success) {
+                            viewModel.deleteSpotResult.removeObserver(this)
+                            parentDialog.dismiss()
+                            // 直接從 allSpots 移除，更新地圖
+                            allSpots = allSpots.filter { it.id != spot.id }
+                            filterAndPlaceMarkers()
+                            // 若在本地列表也存在，同步移除
+                            if (savedSpots.any { it.id == spot.id }) {
+                                savedSpots.removeAll { it.id == spot.id }
+                                viewModel.removeSavedSpot(spot.id)
+                                savedListAdapter?.submitList(buildMixedList(null))
+                            }
+                            Toast.makeText(this@MainActivity, "景點已刪除", Toast.LENGTH_SHORT).show()
+                        } else if (result is NetworkResult.Error) {
+                            viewModel.deleteSpotResult.removeObserver(this)
+                        }
+                    }
+                }
+                viewModel.deleteSpotResult.observe(this, observer)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    /** 從 bottom_sheet_create_edit_spot View 中讀取並驗證欄位，回傳 SpotRequest 或 null */
+    private fun buildSpotRequest(view: android.view.View): SpotRequest? {
+        val tilName = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilSpotName)
+        val name = view.findViewById<TextInputEditText>(R.id.etSpotName).text?.toString()?.trim() ?: ""
+        if (name.isEmpty()) {
+            tilName.error = "景點名稱不能為空"
+            return null
+        }
+        tilName.error = null
+
+        val categoryDisplay = view.findViewById<AutoCompleteTextView>(R.id.actvSpotCategory).text?.toString() ?: ""
+        val category = categoryMap.entries.firstOrNull { it.value == categoryDisplay }?.key
+
+        val address = view.findViewById<TextInputEditText>(R.id.etSpotAddress).text?.toString()?.trim()?.ifEmpty { null }
+        val latStr = view.findViewById<TextInputEditText>(R.id.etSpotLat).text?.toString()?.trim()
+        val lngStr = view.findViewById<TextInputEditText>(R.id.etSpotLng).text?.toString()?.trim()
+        val lat = latStr?.toDoubleOrNull()
+        val lng = lngStr?.toDoubleOrNull()
+        val isPublic = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchSpotPublic).isChecked
+
+        return SpotRequest(
+            name = name,
+            category = category,
+            latitude = lat,
+            longitude = lng,
+            address = address,
+            is_public = isPublic
+        )
+    }
+
+    /** 設定景點分類下拉選單 */
+    private fun setupSpotCategoryDropdown(view: android.view.View) {
+        val actvCategory = view.findViewById<AutoCompleteTextView>(R.id.actvSpotCategory)
+        val displayNames = categoryMap.values.drop(1) // 排除「全部」
+        actvCategory.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames.toList()))
+        actvCategory.setOnClickListener { actvCategory.showDropDown() }
     }
 
     private fun navigateToItineraryDetail(itinerary: Itinerary) {

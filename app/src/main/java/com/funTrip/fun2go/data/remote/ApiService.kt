@@ -94,7 +94,13 @@ interface ApiService {
     suspend fun getSpotDetail(@Path("id") id: Int): Response<Spot>
 
     @POST("api/spots")
-    suspend fun createSpot(@Body spot: Spot): Response<Spot>
+    suspend fun createSpot(@Body req: SpotRequest): Response<Spot>
+
+    @PUT("api/spots/{id}")
+    suspend fun updateSpot(@Path("id") id: Int, @Body req: SpotRequest): Response<Spot>
+
+    @DELETE("api/spots/{id}")
+    suspend fun deleteSpot(@Path("id") id: Int): Response<Unit>
 
     // --- 收藏 (Favorites) ---
     @POST("api/favorites")

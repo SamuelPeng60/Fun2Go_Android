@@ -11,9 +11,13 @@ abstract class BaseRepository {
             val response = apiCall()
             if (response.isSuccessful) {
                 val body = response.body()
-                body?.let {
+                if (body != null) {
                     return NetworkResult.Success(body)
                 }
+                // 204 No Content（或 200 with empty body）：沒有 body 但仍是成功
+                // 適用於 DELETE 等回傳 204 的 endpoint（Response<Unit>）
+                @Suppress("UNCHECKED_CAST")
+                return NetworkResult.Success(Unit as T)
             }
 
             // 解析錯誤訊息 { "error": "錯誤訊息" }
