@@ -6,14 +6,16 @@ data class Itinerary(
     val id: Int,
     val title: String,
     @SerializedName("user_id") val author_id: Int = 0,
-    val start_date: String?,
-    val end_date: String?,
+    val destination: String? = null,
+    val total_days: Int = 1,
     val copy_count: Int = 0,
     val is_public: Boolean = false,
-    val cover_image: String?,
-    // 詳情 API 可能會回傳巢狀結構
+    @SerializedName("cover_image_url") val coverImageUrl: String? = null,
+    // 詳情 API 回傳巢狀天數
     val days: List<ItineraryDay>? = null,
-    val author: User? = null
+    // 列表 API 回傳平鋪的作者欄位
+    @SerializedName("author_name") val authorName: String? = null,
+    @SerializedName("author_avatar") val authorAvatar: String? = null
 )
 
 data class ItineraryDay(

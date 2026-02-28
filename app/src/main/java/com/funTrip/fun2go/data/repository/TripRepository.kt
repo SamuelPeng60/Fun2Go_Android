@@ -43,12 +43,11 @@ class TripRepository : BaseRepository() {
     }
 
     // 建立行程
-    suspend fun createItinerary(title: String, start: String, end: String): NetworkResult<Itinerary> {
+    suspend fun createItinerary(title: String, totalDays: Int?, destination: String?): NetworkResult<Itinerary> {
         val result = safeApiCall {
-            api.createItinerary(ItineraryRequest(title, start.ifEmpty { null }, end.ifEmpty { null }))
+            api.createItinerary(ItineraryRequest(title, totalDays, destination?.ifEmpty { null }))
         }
         // 後端 bug 防護：行程建立成功但 user_id=null → 無法新增天數(403)
-        // 直接回傳錯誤，不讓 UI 導航到無法管理的行程
         if (result is NetworkResult.Success && (result.data?.author_id ?: 0) == 0) {
             return NetworkResult.Error("行程建立異常：伺服器未能設置擁有者，請重新嘗試")
         }
@@ -75,8 +74,8 @@ class TripRepository : BaseRepository() {
 
     // --- Itineraries ---
 
-    suspend fun updateItinerary(id: Int, request: ItineraryRequest) = safeApiCall {
-        api.updateItinerary(id, request)
+    suspend fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?) = safeApiCall {
+        api.updateItinerary(id, ItineraryRequest(title, totalDays, destination?.ifEmpty { null }))
     }
 
     suspend fun deleteItinerary(id: Int) = safeApiCall { api.deleteItinerary(id) }

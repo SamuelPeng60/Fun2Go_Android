@@ -10,7 +10,6 @@ import com.funTrip.fun2go.data.local.SavedSpotEntity
 import com.funTrip.fun2go.data.local.TokenManager
 import com.funTrip.fun2go.data.model.AddSpotToDayRequest
 import com.funTrip.fun2go.data.model.Itinerary
-import com.funTrip.fun2go.data.model.ItineraryRequest
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
@@ -126,20 +125,17 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun createItinerary(title: String, start: String, end: String) {
+    fun createItinerary(title: String, totalDays: Int?, destination: String?) {
         _createResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _createResult.value = repository.createItinerary(title, start, end)
+            _createResult.value = repository.createItinerary(title, totalDays, destination)
         }
     }
 
-    fun updateItinerary(id: Int, title: String, start: String, end: String) {
+    fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?) {
         _updateResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _updateResult.value = repository.updateItinerary(
-                id,
-                ItineraryRequest(title, start.ifEmpty { null }, end.ifEmpty { null })
-            )
+            _updateResult.value = repository.updateItinerary(id, title, totalDays, destination)
         }
     }
 }

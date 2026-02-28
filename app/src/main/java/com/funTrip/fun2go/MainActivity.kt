@@ -52,10 +52,6 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.datepicker.MaterialDatePicker
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -720,35 +716,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_itinerary, null)
 
-        val tilTitle  = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle   = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etStart   = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val etEnd     = view.findViewById<TextInputEditText>(R.id.etEndDate)
-        val btnCreate = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
-        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
-        val pbCreating = view.findViewById<ProgressBar>(R.id.pbCreating)
-
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-        etStart.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇開始日期")
-                .build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etStart.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "start_date_picker")
-        }
-
-        etEnd.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇結束日期")
-                .build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etEnd.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "end_date_picker")
-        }
+        val tilTitle    = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
+        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
+        val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
 
         val createObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.Itinerary>> { result ->
             when (result) {
@@ -777,9 +751,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val start = etStart.text?.toString()?.trim() ?: ""
-            val end   = etEnd.text?.toString()?.trim() ?: ""
-            viewModel.createItinerary(title, start, end)
+            val dest      = etDest.text?.toString()?.trim()
+            val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+            viewModel.createItinerary(title, totalDays, dest)
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }

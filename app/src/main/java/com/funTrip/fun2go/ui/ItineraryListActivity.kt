@@ -20,14 +20,10 @@ import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class ItineraryListActivity : AppCompatActivity() {
 
@@ -144,33 +140,13 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_itinerary, null)
 
-        val tilTitle   = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle    = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etStart    = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val etEnd      = view.findViewById<TextInputEditText>(R.id.etEndDate)
-        val btnCreate  = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
-        val btnCancel  = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
-        val pbCreating = view.findViewById<ProgressBar>(R.id.pbCreating)
-
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-        etStart.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇開始日期").build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etStart.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "create_start_date_picker")
-        }
-
-        etEnd.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇結束日期").build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etEnd.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "create_end_date_picker")
-        }
+        val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
+        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
+        val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
 
         // hasStarted：防止 LiveData sticky 把舊的 Success/Error 立刻送進來
         // navigated：防止 Success 被處理兩次
@@ -216,9 +192,9 @@ class ItineraryListActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val start = etStart.text?.toString()?.trim() ?: ""
-            val end   = etEnd.text?.toString()?.trim() ?: ""
-            viewModel.createItinerary(title, start, end)
+            val dest      = etDest.text?.toString()?.trim()
+            val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+            viewModel.createItinerary(title, totalDays, dest)
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }
@@ -238,37 +214,17 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_edit_itinerary, null)
 
-        val tilTitle   = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle    = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val etStart    = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val etEnd      = view.findViewById<TextInputEditText>(R.id.etEndDate)
-        val btnUpdate  = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
-        val btnCancel  = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
-        val pbUpdating = view.findViewById<ProgressBar>(R.id.pbUpdating)
+        val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val etDest      = view.findViewById<TextInputEditText>(R.id.etDestination)
+        val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val btnUpdate   = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
+        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
+        val pbUpdating  = view.findViewById<ProgressBar>(R.id.pbUpdating)
 
         etTitle.setText(itinerary.title)
-        etStart.setText(itinerary.start_date?.take(10) ?: "")
-        etEnd.setText(itinerary.end_date?.take(10) ?: "")
-
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-
-        etStart.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇開始日期").build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etStart.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "edit_start_date_picker")
-        }
-
-        etEnd.setOnClickListener {
-            val picker = MaterialDatePicker.Builder.datePicker()
-                .setTitleText("選擇結束日期").build()
-            picker.addOnPositiveButtonClickListener { ms ->
-                etEnd.setText(dateFormat.format(Date(ms)))
-            }
-            picker.show(supportFragmentManager, "edit_end_date_picker")
-        }
+        etDest.setText(itinerary.destination ?: "")
+        etTotalDays.setText(if (itinerary.total_days > 0) itinerary.total_days.toString() else "")
 
         // hasStarted：防止 LiveData sticky 把舊的 Success 立刻送進來（避免 dialog 一開就關）
         var hasStarted = false
@@ -306,9 +262,9 @@ class ItineraryListActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             tilTitle.error = null
-            val start = etStart.text?.toString()?.trim() ?: ""
-            val end   = etEnd.text?.toString()?.trim() ?: ""
-            viewModel.updateItinerary(itinerary.id, title, start, end)
+            val dest      = etDest.text?.toString()?.trim()
+            val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+            viewModel.updateItinerary(itinerary.id, title, totalDays, dest)
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }

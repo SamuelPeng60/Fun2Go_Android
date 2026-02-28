@@ -322,17 +322,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createItinerary(title: String, start: String, end: String) {
+    fun createItinerary(title: String, totalDays: Int?, destination: String?) {
         _createItineraryResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _createItineraryResponse.value = repository.createItinerary(title, start, end)
+            _createItineraryResponse.value = repository.createItinerary(title, totalDays, destination)
         }
     }
 
-    fun updateItinerary(id: Int, request: ItineraryRequest) {
+    fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?) {
         _updateItineraryResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _updateItineraryResponse.value = repository.updateItinerary(id, request)
+            _updateItineraryResponse.value = repository.updateItinerary(id, title, totalDays, destination)
         }
     }
 

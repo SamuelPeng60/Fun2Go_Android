@@ -6,9 +6,9 @@ data class UserRequest(val name: String, val email: String?)
 // 建立/更新 行程
 data class ItineraryRequest(
     val title: String,
-    val start_date: String?,
-    val end_date: String?,
-    val is_public: Boolean? = false
+    val total_days: Int? = null,
+    val destination: String? = null,
+    val is_public: Boolean? = null
 )
 
 // 新增景點到行程的一天

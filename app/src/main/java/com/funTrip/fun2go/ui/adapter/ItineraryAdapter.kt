@@ -8,8 +8,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 class ItineraryAdapter(
     private val onItemClick: (Itinerary) -> Unit,
@@ -44,28 +42,10 @@ class ItineraryAdapter(
         fun bind(itinerary: Itinerary) {
             tvTitle.text = itinerary.title
 
-            val start = itinerary.start_date?.take(10)
-            val end = itinerary.end_date?.take(10)
-            tvDates.text = if (!start.isNullOrEmpty() || !end.isNullOrEmpty()) {
-                "${start ?: "?"} ～ ${end ?: "?"}"
-            } else {
-                "未設定日期"
-            }
+            tvDates.text = itinerary.destination?.takeIf { it.isNotEmpty() } ?: "未設定目的地"
 
-            val dayCount: Int? = itinerary.days?.size ?: run {
-                if (!start.isNullOrEmpty() && !end.isNullOrEmpty()) {
-                    try {
-                        val s = LocalDate.parse(start)
-                        val e = LocalDate.parse(end)
-                        (ChronoUnit.DAYS.between(s, e) + 1).toInt().coerceAtLeast(1)
-                    } catch (ex: Exception) {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
-
+            // 優先用實際 days.size（詳情頁回傳），否則用 total_days
+            val dayCount = itinerary.days?.size?.takeIf { it > 0 } ?: itinerary.total_days.takeIf { it > 0 }
             if (dayCount != null) {
                 tvDayCount.text = "$dayCount 天"
                 tvDayCount.visibility = View.VISIBLE
