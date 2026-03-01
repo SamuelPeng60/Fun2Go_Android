@@ -27,7 +27,6 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.funTrip.fun2go.R
-import com.funTrip.fun2go.data.model.DistanceInfo
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.model.SpotRequest
@@ -395,7 +394,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 savedSpots.removeAll { it.id == spot.id }
                 viewModel.removeSavedSpot(spot.id)
                 syncButton()
-                savedListAdapter?.submitList(buildMixedList(null))
+                savedListAdapter?.submitList(buildMixedList())
                 return@setOnClickListener
             }
             val itineraries = viewModel.cachedUserItineraries
@@ -405,7 +404,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     .setTitle("加入行程")
                     .setItems(options) { _, which ->
                         savedSpots.add(spot); viewModel.addSavedSpot(spot)
-                        syncButton(); savedListAdapter?.submitList(buildMixedList(null))
+                        syncButton(); savedListAdapter?.submitList(buildMixedList())
                         when {
                             which < itineraries.size ->
                                 viewModel.addSpotToExistingItinerary(itineraries[which].id, spot)
@@ -416,7 +415,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     }.show()
             } else {
                 savedSpots.add(spot); viewModel.addSavedSpot(spot)
-                syncButton(); savedListAdapter?.submitList(buildMixedList(null))
+                syncButton(); savedListAdapter?.submitList(buildMixedList())
             }
         }
 
@@ -424,19 +423,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         dialog.show()
     }
 
-    private fun buildMixedList(distances: List<DistanceInfo?>?): List<SavedListItem> {
-        val list = mutableListOf<SavedListItem>()
-        savedSpots.forEachIndexed { index, spot ->
-            list.add(SavedListItem.SpotItem(spot))
-            if (index < savedSpots.size - 1) {
-                val info = distances?.getOrNull(index)
-                if (info != null) {
-                    list.add(SavedListItem.DistanceSeparator(info.distance, info.duration))
-                }
-            }
-        }
-        return list
-    }
+    private fun buildMixedList(): List<SavedListItem> =
+        savedSpots.map { SavedListItem.SpotItem(it) }
 
     private fun showSavedListBottomSheet() {
         val dialog = BottomSheetDialog(this)
@@ -462,28 +450,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (pos != -1) {
                 savedSpots.removeAt(pos)
                 viewModel.removeSavedSpot(spot.id)
-                savedListAdapter?.submitList(buildMixedList(null))
-                viewModel.fetchDistancesBetweenSpots(savedSpots)
+                savedListAdapter?.submitList(buildMixedList())
                 refreshState()
             }
         }
 
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = savedListAdapter
-        savedListAdapter?.submitList(buildMixedList(null))
+        savedListAdapter?.submitList(buildMixedList())
         refreshState()
 
-        val distObserver = Observer<List<DistanceInfo?>?> { distances ->
-            if (distances != null) savedListAdapter?.submitList(buildMixedList(distances))
-        }
-        viewModel.distanceResults.observe(this, distObserver)
+        dialog.setOnDismissListener { savedListAdapter = null }
 
-        dialog.setOnDismissListener {
-            viewModel.distanceResults.removeObserver(distObserver)
-            savedListAdapter = null
-        }
-
-        viewModel.fetchDistancesBetweenSpots(savedSpots)
         dialog.setContentView(view)
         dialog.show()
     }
@@ -946,7 +924,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             if (savedSpots.any { it.id == spot.id }) {
                                 savedSpots.removeAll { it.id == spot.id }
                                 viewModel.removeSavedSpot(spot.id)
-                                savedListAdapter?.submitList(buildMixedList(null))
+                                savedListAdapter?.submitList(buildMixedList())
                             }
                             Toast.makeText(this@MainActivity, "景點已刪除", Toast.LENGTH_SHORT).show()
                         } else if (result is NetworkResult.Error) {

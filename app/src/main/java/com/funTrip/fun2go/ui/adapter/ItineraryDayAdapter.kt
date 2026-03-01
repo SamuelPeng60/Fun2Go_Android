@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.ItineraryDay
 import com.funTrip.fun2go.data.model.ItinerarySpot
+import kotlin.math.*
 
 class ItineraryDayAdapter(
     private val onAddSpotClick: (ItineraryDay) -> Unit = {},
@@ -19,6 +20,7 @@ class ItineraryDayAdapter(
     sealed class Item {
         data class Header(val day: ItineraryDay, val isExpanded: Boolean) : Item()
         data class SpotEntry(val itSpot: ItinerarySpot, val dayId: Int) : Item()
+        data class DistanceSeparator(val distText: String, val durationText: String) : Item()
         data class AddButton(val day: ItineraryDay) : Item()
     }
 
@@ -26,6 +28,30 @@ class ItineraryDayAdapter(
         private const val VIEW_DAY = 0
         private const val VIEW_SPOT = 1
         private const val VIEW_ADD = 2
+        private const val VIEW_DISTANCE = 3
+
+        private fun calcDistance(a: ItinerarySpot, b: ItinerarySpot): Pair<String, String>? {
+            val lat1 = a.spot_detail?.latitude?.toDoubleOrNull() ?: return null
+            val lng1 = a.spot_detail?.longitude?.toDoubleOrNull() ?: return null
+            val lat2 = b.spot_detail?.latitude?.toDoubleOrNull() ?: return null
+            val lng2 = b.spot_detail?.longitude?.toDoubleOrNull() ?: return null
+            val R = 6371.0
+            val dLat = Math.toRadians(lat2 - lat1)
+            val dLng = Math.toRadians(lng2 - lng1)
+            val av = sin(dLat / 2).pow(2) +
+                    cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2)
+            val roadKm = R * 2 * atan2(sqrt(av), sqrt(1 - av)) * 1.3
+            val minutes = (roadKm / 25.0 * 60).toInt().coerceAtLeast(1)
+            val distText = when {
+                roadKm < 1.0  -> "${(roadKm * 1000).toInt()} 公尺"
+                roadKm < 10.0 -> "%.1f 公里".format(roadKm)
+                else          -> "${roadKm.toInt()} 公里"
+            }
+            val durationText = if (minutes < 60) "約 $minutes 分鐘"
+            else { val h = minutes / 60; val m = minutes % 60
+                if (m == 0) "約 $h 小時" else "約 ${h}h${m}m" }
+            return distText to durationText
+        }
     }
 
     private var days: List<ItineraryDay> = emptyList()
@@ -43,7 +69,14 @@ class ItineraryDayAdapter(
             val isExpanded = day.id in expandedDayIds
             list += Item.Header(day, isExpanded)
             if (isExpanded) {
-                day.spots?.forEach { spot -> list += Item.SpotEntry(spot, day.id) }
+                val spots = day.spots ?: emptyList()
+                spots.forEachIndexed { index, itSpot ->
+                    list += Item.SpotEntry(itSpot, day.id)
+                    if (index < spots.size - 1) {
+                        val dist = calcDistance(itSpot, spots[index + 1])
+                        if (dist != null) list += Item.DistanceSeparator(dist.first, dist.second)
+                    }
+                }
                 list += Item.AddButton(day)
             }
         }
@@ -54,6 +87,7 @@ class ItineraryDayAdapter(
     override fun getItemViewType(position: Int) = when (flatList[position]) {
         is Item.Header -> VIEW_DAY
         is Item.SpotEntry -> VIEW_SPOT
+        is Item.DistanceSeparator -> VIEW_DISTANCE
         is Item.AddButton -> VIEW_ADD
     }
 
@@ -62,6 +96,7 @@ class ItineraryDayAdapter(
         return when (viewType) {
             VIEW_DAY -> DayHeaderViewHolder(inflater.inflate(R.layout.item_itinerary_day, parent, false))
             VIEW_SPOT -> SpotViewHolder(inflater.inflate(R.layout.item_day_spot, parent, false))
+            VIEW_DISTANCE -> DistanceSeparatorViewHolder(inflater.inflate(R.layout.item_distance_separator, parent, false))
             VIEW_ADD -> AddButtonViewHolder(inflater.inflate(R.layout.item_day_add_spot, parent, false))
             else -> throw IllegalStateException("Unknown viewType: $viewType")
         }
@@ -71,6 +106,7 @@ class ItineraryDayAdapter(
         when (val item = flatList[position]) {
             is Item.Header -> (holder as DayHeaderViewHolder).bind(item)
             is Item.SpotEntry -> (holder as SpotViewHolder).bind(item)
+            is Item.DistanceSeparator -> (holder as DistanceSeparatorViewHolder).bind(item)
             is Item.AddButton -> (holder as AddButtonViewHolder).bind(item)
         }
     }
@@ -123,6 +159,15 @@ class ItineraryDayAdapter(
             }
 
             btnRemove.setOnClickListener { onRemoveSpotClick(itSpot, item.dayId) }
+        }
+    }
+
+    // ── Distance Separator ───────────────────────────────────────────────────
+    inner class DistanceSeparatorViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val tvDistanceInfo: TextView = view.findViewById(R.id.tvDistanceInfo)
+
+        fun bind(item: Item.DistanceSeparator) {
+            tvDistanceInfo.text = "${item.distText}  ·  ${item.durationText}"
         }
     }
 

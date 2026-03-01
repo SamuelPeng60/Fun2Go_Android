@@ -11,44 +11,24 @@ import com.funTrip.fun2go.data.model.Spot
 
 sealed class SavedListItem {
     data class SpotItem(val spot: Spot) : SavedListItem()
-    data class DistanceSeparator(val distanceText: String, val durationText: String) : SavedListItem()
 }
 
 class SavedSpotAdapter(
     private val getCategoryLabel: (String?) -> String,
     private val onDelete: (Spot) -> Unit
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerView.Adapter<SavedSpotAdapter.SpotViewHolder>() {
 
-    private var items: List<SavedListItem> = emptyList()
+    private var items: List<Spot> = emptyList()
 
     fun submitList(newItems: List<SavedListItem>) {
-        items = newItems
+        items = newItems.filterIsInstance<SavedListItem.SpotItem>().map { it.spot }
         notifyDataSetChanged()
     }
 
-    override fun getItemViewType(position: Int) = when (items[position]) {
-        is SavedListItem.SpotItem -> VIEW_TYPE_SPOT
-        is SavedListItem.DistanceSeparator -> VIEW_TYPE_DISTANCE
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        SpotViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_saved_spot, parent, false))
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        return when (viewType) {
-            VIEW_TYPE_SPOT -> SpotViewHolder(
-                inflater.inflate(R.layout.item_saved_spot, parent, false)
-            )
-            else -> DistanceViewHolder(
-                inflater.inflate(R.layout.item_distance_separator, parent, false)
-            )
-        }
-    }
-
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val item = items[position]) {
-            is SavedListItem.SpotItem -> (holder as SpotViewHolder).bind(item.spot)
-            is SavedListItem.DistanceSeparator -> (holder as DistanceViewHolder).bind(item)
-        }
-    }
+    override fun onBindViewHolder(holder: SpotViewHolder, position: Int) = holder.bind(items[position])
 
     override fun getItemCount() = items.size
 
@@ -62,18 +42,5 @@ class SavedSpotAdapter(
             tvCategory.text = getCategoryLabel(spot.category)
             btnDelete.setOnClickListener { onDelete(spot) }
         }
-    }
-
-    inner class DistanceViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val tvDistanceInfo: TextView = view.findViewById(R.id.tvDistanceInfo)
-
-        fun bind(item: SavedListItem.DistanceSeparator) {
-            tvDistanceInfo.text = "${item.distanceText}  ·  ${item.durationText}"
-        }
-    }
-
-    companion object {
-        private const val VIEW_TYPE_SPOT = 0
-        private const val VIEW_TYPE_DISTANCE = 1
     }
 }
