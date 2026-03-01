@@ -34,8 +34,6 @@ import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
 import com.funTrip.fun2go.ui.ItineraryListActivity
-import com.funTrip.fun2go.ui.adapter.SavedListItem
-import com.funTrip.fun2go.ui.adapter.SavedSpotAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -125,7 +123,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // 我的列表
     private val savedSpots = mutableListOf<Spot>()
     private var hasLoadedFromDb = false
-    private var savedListAdapter: SavedSpotAdapter? = null
 
     // Feature 2：匯入景點後的目標行程
     private var pendingNavigationItinerary: Itinerary? = null
@@ -229,10 +226,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             } else {
                 showLoginBottomSheet()
             }
-        }
-
-        findViewById<MaterialButton>(R.id.btnListView).setOnClickListener {
-            showSavedListBottomSheet()
         }
 
         findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
@@ -379,10 +372,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         fun syncButton() {
             if (savedSpots.any { it.id == spot.id }) {
-                btnAdd.text = "✓ 已加入"
+                btnAdd.text = "✓ 已加入行程"
                 btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
             } else {
-                btnAdd.text = "＋ 加入列表"
+                btnAdd.text = "＋ 加入行程"
                 btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F44062"))
             }
         }
@@ -394,73 +387,35 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 savedSpots.removeAll { it.id == spot.id }
                 viewModel.removeSavedSpot(spot.id)
                 syncButton()
-                savedListAdapter?.submitList(buildMixedList())
                 return@setOnClickListener
             }
+            // 步驟一：必須登入
+            if (!viewModel.isLoggedIn) {
+                showLoginBottomSheet("請先登入 Google，才能將景點加入行程")
+                return@setOnClickListener
+            }
+            // 步驟二：必須有行程
             val itineraries = viewModel.cachedUserItineraries
-            if (viewModel.isLoggedIn && itineraries.isNotEmpty()) {
-                val options = (itineraries.map { it.title } + listOf("＋ 新增行程", "只加入列表")).toTypedArray()
+            if (itineraries.isEmpty()) {
                 AlertDialog.Builder(this)
-                    .setTitle("加入行程")
-                    .setItems(options) { _, which ->
-                        savedSpots.add(spot); viewModel.addSavedSpot(spot)
-                        syncButton(); savedListAdapter?.submitList(buildMixedList())
-                        when {
-                            which < itineraries.size ->
-                                viewModel.addSpotToExistingItinerary(itineraries[which].id, spot)
-                            which == itineraries.size ->
-                                requireLogin("登入後即可建立旅遊行程") { showCreateItinerarySheet() }
-                            // else: 只加入列表，已在上面完成
-                        }
-                    }.show()
-            } else {
-                savedSpots.add(spot); viewModel.addSavedSpot(spot)
-                syncButton(); savedListAdapter?.submitList(buildMixedList())
+                    .setTitle("尚無行程")
+                    .setMessage("請先建立一個行程，才能加入景點")
+                    .setPositiveButton("前往建立") { _, _ -> showCreateItinerarySheet() }
+                    .setNegativeButton("取消", null)
+                    .show()
+                return@setOnClickListener
             }
+            // 步驟三：選擇要加入的行程
+            AlertDialog.Builder(this)
+                .setTitle("選擇行程")
+                .setItems(itineraries.map { it.title }.toTypedArray()) { _, which ->
+                    savedSpots.add(spot)
+                    viewModel.addSavedSpot(spot)
+                    syncButton()
+                    viewModel.addSpotToExistingItinerary(itineraries[which].id, spot)
+                }
+                .show()
         }
-
-        dialog.setContentView(view)
-        dialog.show()
-    }
-
-    private fun buildMixedList(): List<SavedListItem> =
-        savedSpots.map { SavedListItem.SpotItem(it) }
-
-    private fun showSavedListBottomSheet() {
-        val dialog = BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_saved_list, null)
-
-        val tvEmpty = view.findViewById<TextView>(R.id.tvEmptyList)
-        val rv = view.findViewById<RecyclerView>(R.id.rvSavedSpots)
-
-        fun refreshState() {
-            if (savedSpots.isEmpty()) {
-                tvEmpty.visibility = View.VISIBLE
-                rv.visibility = View.GONE
-            } else {
-                tvEmpty.visibility = View.GONE
-                rv.visibility = View.VISIBLE
-            }
-        }
-
-        savedListAdapter = SavedSpotAdapter(
-            { cat -> categoryMap[cat] ?: cat ?: "景點" }
-        ) { spot ->
-            val pos = savedSpots.indexOfFirst { it.id == spot.id }
-            if (pos != -1) {
-                savedSpots.removeAt(pos)
-                viewModel.removeSavedSpot(spot.id)
-                savedListAdapter?.submitList(buildMixedList())
-                refreshState()
-            }
-        }
-
-        rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = savedListAdapter
-        savedListAdapter?.submitList(buildMixedList())
-        refreshState()
-
-        dialog.setOnDismissListener { savedListAdapter = null }
 
         dialog.setContentView(view)
         dialog.show()
@@ -476,7 +431,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (!hasLoadedFromDb) {
                 hasLoadedFromDb = true
                 savedSpots.addAll(entities.map { it.toSpot() })
-                savedListAdapter?.notifyDataSetChanged()
             }
         }
 
@@ -924,7 +878,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             if (savedSpots.any { it.id == spot.id }) {
                                 savedSpots.removeAll { it.id == spot.id }
                                 viewModel.removeSavedSpot(spot.id)
-                                savedListAdapter?.submitList(buildMixedList())
                             }
                             Toast.makeText(this@MainActivity, "景點已刪除", Toast.LENGTH_SHORT).show()
                         } else if (result is NetworkResult.Error) {

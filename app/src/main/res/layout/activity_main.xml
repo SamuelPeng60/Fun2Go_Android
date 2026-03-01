@@ -89,27 +89,10 @@
         android:layout_gravity="bottom"
         android:orientation="vertical">
 
-        <!-- 列表按鈕 + FAB 列 -->
+        <!-- FAB 列 -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="72dp">
-
-            <!-- 列表按鈕（置中） -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnListView"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:layout_gravity="center"
-                android:text="  列表"
-                android:textColor="#333333"
-                app:backgroundTint="#FFFFFF"
-                app:strokeColor="#DDDDDD"
-                app:strokeWidth="1dp"
-                app:cornerRadius="22dp"
-                android:elevation="6dp"
-                android:paddingStart="24dp"
-                android:paddingEnd="24dp" />
 
             <!-- FAB（右側） -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
