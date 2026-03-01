@@ -247,6 +247,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 startActivity(Intent(this, ItineraryListActivity::class.java))
             }
         }
+
+        findViewById<ImageButton>(R.id.btnNavCharter).setOnClickListener {
+            startActivity(Intent(this, VehicleListActivity::class.java))
+        }
     }
 
     private fun setupCategoryChips() {

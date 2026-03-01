@@ -153,6 +153,16 @@ class TripRepository : BaseRepository() {
 
     suspend fun deleteSpot(id: Int): NetworkResult<Unit> = safeApiCall { api.deleteSpot(id) }
 
+    // --- Vehicles ---
+
+    suspend fun getVehicles(type: String?, available: Boolean?) = safeApiCall {
+        api.getVehicles(type, available)
+    }
+
+    suspend fun getVehicleDetail(id: Int) = safeApiCall {
+        api.getVehicleDetail(id)
+    }
+
     // --- Favorites ---
 
     suspend fun addFavorite(userId: Int, spotId: Int) = safeApiCall {

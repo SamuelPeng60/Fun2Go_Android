@@ -102,6 +102,16 @@ interface ApiService {
     @DELETE("api/spots/{id}")
     suspend fun deleteSpot(@Path("id") id: Int): Response<Unit>
 
+    // --- 車輛 (Vehicles) ---
+    @GET("api/vehicles")
+    suspend fun getVehicles(
+        @Query("type")      type: String? = null,
+        @Query("available") available: Boolean? = null
+    ): Response<List<Vehicle>>
+
+    @GET("api/vehicles/{id}")
+    suspend fun getVehicleDetail(@Path("id") id: Int): Response<Vehicle>
+
     // --- 收藏 (Favorites) ---
     @POST("api/favorites")
     suspend fun addFavorite(@Body request: FavoriteRequest): Response<Unit>

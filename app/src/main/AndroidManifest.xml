@@ -41,6 +41,12 @@
             android:name=".ui.ItineraryListActivity"
             android:label="我的行程"
             android:theme="@style/Theme.Fun2Go" />
+
+        <activity
+            android:name=".ui.VehicleListActivity"
+            android:label="租車"
+            android:theme="@style/Theme.Fun2Go"
+            android:parentActivityName=".ui.MainActivity" />
     </application>
 
 </manifest>
