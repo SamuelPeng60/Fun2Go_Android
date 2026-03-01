@@ -1,7 +1,9 @@
 package com.funTrip.fun2go.ui
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
+import java.util.Calendar
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
@@ -39,6 +41,7 @@ class ItineraryListActivity : AppCompatActivity() {
 
     private var createDialog: BottomSheetDialog? = null
     private var editDialog: BottomSheetDialog? = null
+    private var pendingItinerary: Itinerary? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,6 +138,34 @@ class ItineraryListActivity : AppCompatActivity() {
                 }
             }
         }
+
+        viewModel.initDaysResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> {
+                    pbLoading.visibility = View.GONE
+                    val pending = pendingItinerary ?: return@observe
+                    pendingItinerary = null
+                    startActivity(
+                        Intent(this, ItineraryDetailActivity::class.java).apply {
+                            putExtra("itinerary_id", pending.id)
+                            putExtra("itinerary_title", pending.title)
+                        }
+                    )
+                }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    val pending = pendingItinerary ?: return@observe
+                    pendingItinerary = null
+                    startActivity(
+                        Intent(this, ItineraryDetailActivity::class.java).apply {
+                            putExtra("itinerary_id", pending.id)
+                            putExtra("itinerary_title", pending.title)
+                        }
+                    )
+                }
+            }
+        }
     }
 
     private fun showCreateSheet() {
@@ -146,6 +177,7 @@ class ItineraryListActivity : AppCompatActivity() {
         val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
         val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
         val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val etStartDate = view.findViewById<TextInputEditText>(R.id.etStartDate)
         val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
         val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
         val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
@@ -153,6 +185,15 @@ class ItineraryListActivity : AppCompatActivity() {
         val destinations = resources.getStringArray(R.array.destinations)
         actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
         actvDest.setOnClickListener { actvDest.showDropDown() }
+
+        var selectedStartDate: String? = null
+        etStartDate.setOnClickListener {
+            val cal = Calendar.getInstance()
+            DatePickerDialog(this, { _, year, month, dayOfMonth ->
+                selectedStartDate = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+                etStartDate.setText(selectedStartDate)
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }
 
         // hasStarted：防止 LiveData sticky 把舊的 Success/Error 立刻送進來
         // navigated：防止 Success 被處理兩次
@@ -173,13 +214,10 @@ class ItineraryListActivity : AppCompatActivity() {
                     pbCreating.visibility = View.GONE
                     val itinerary = result.data ?: return@Observer
                     Log.d("ILA_DEBUG", "create Success itinerary.id=${itinerary.id}")
+                    pendingItinerary = itinerary
                     dialog.dismiss()
-                    startActivity(
-                        Intent(this, ItineraryDetailActivity::class.java).apply {
-                            putExtra("itinerary_id", itinerary.id)
-                            putExtra("itinerary_title", itinerary.title)
-                        }
-                    )
+                    pbCreating.visibility = View.VISIBLE
+                    viewModel.initItineraryDays(itinerary.id, itinerary.total_days, selectedStartDate)
                 }
                 is NetworkResult.Error -> {
                     if (!hasStarted) return@Observer  // 忽略 stale cached 值

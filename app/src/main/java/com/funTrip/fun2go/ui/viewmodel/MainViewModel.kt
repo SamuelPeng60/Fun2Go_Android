@@ -101,6 +101,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var cachedUserItineraries: List<Itinerary> = emptyList()
         private set
 
+    // ─── 建立行程時初始化天數 ─────────────────────────────────
+    private val _initDaysResult = MutableLiveData<NetworkResult<Unit>>()
+    val initDaysResult: LiveData<NetworkResult<Unit>> = _initDaysResult
+
+    fun initItineraryDays(itineraryId: Int, totalDays: Int, startDate: String?) {
+        _initDaysResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _initDaysResult.value = repository.initItineraryDays(itineraryId, totalDays, startDate)
+        }
+    }
+
     // ─── Feature 2：匯入景點 ──────────────────────────────────
     private val _importSpotsResult = MutableLiveData<NetworkResult<Unit>>()
     val importSpotsResult: LiveData<NetworkResult<Unit>> = _importSpotsResult

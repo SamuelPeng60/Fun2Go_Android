@@ -38,6 +38,16 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     private val _addDayResult = MutableLiveData<NetworkResult<Unit>>()
     val addDayResult: LiveData<NetworkResult<Unit>> = _addDayResult
 
+    private val _initDaysResult = MutableLiveData<NetworkResult<Unit>>()
+    val initDaysResult: LiveData<NetworkResult<Unit>> = _initDaysResult
+
+    fun initItineraryDays(itineraryId: Int, totalDays: Int, startDate: String?) {
+        _initDaysResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _initDaysResult.value = repository.initItineraryDays(itineraryId, totalDays, startDate)
+        }
+    }
+
     private val _updateDayResult = MutableLiveData<NetworkResult<Unit>>()
     val updateDayResult: LiveData<NetworkResult<Unit>> = _updateDayResult
 

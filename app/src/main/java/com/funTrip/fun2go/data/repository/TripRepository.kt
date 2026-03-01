@@ -86,6 +86,29 @@ class TripRepository : BaseRepository() {
 
     // --- Itinerary Days ---
 
+    suspend fun initItineraryDays(itineraryId: Int, totalDays: Int, startDate: String?): NetworkResult<Unit> {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val startCal: java.util.Calendar? = startDate?.let { dateStr ->
+            runCatching {
+                java.util.Calendar.getInstance().also { it.time = sdf.parse(dateStr)!! }
+            }.getOrNull()
+        }
+        for (dayNumber in 1..totalDays) {
+            val result = addDay(itineraryId, dayNumber)
+            if (result is NetworkResult.Success) {
+                val dayId = result.data?.id ?: continue
+                if (startCal != null) {
+                    val cal = java.util.Calendar.getInstance().also { it.time = startCal.time }
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, dayNumber - 1)
+                    updateDay(itineraryId, dayId, mapOf("date" to sdf.format(cal.time)))
+                }
+            } else if (result is NetworkResult.Error) {
+                return NetworkResult.Error("建立第 $dayNumber 天失敗")
+            }
+        }
+        return NetworkResult.Success(Unit)
+    }
+
     suspend fun addDay(itineraryId: Int, dayNumber: Int) = safeApiCall {
         api.addDay(itineraryId, AddDayRequest(dayNumber))
     }

@@ -2,6 +2,8 @@ package com.funTrip.fun2go.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.DatePickerDialog
+import java.util.Calendar
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -124,8 +126,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val savedSpots = mutableListOf<Spot>()
     private var hasLoadedFromDb = false
 
-    // Feature 2：匯入景點後的目標行程
     private var pendingNavigationItinerary: Itinerary? = null
+    private var pendingStartDate: String? = null
 
     private val categoryMap = linkedMapOf(
         "all"          to "全部",
@@ -509,22 +511,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     createItineraryHandled = true
                     createItineraryDialog?.dismiss()
                     val itinerary = result.data ?: return@observe
-                    if (savedSpots.isNotEmpty()) {
-                        pendingNavigationItinerary = itinerary
-                        AlertDialog.Builder(this)
-                            .setTitle("匯入景點")
-                            .setMessage("是否將列表中 ${savedSpots.size} 個景點加入「${itinerary.title}」的第一天？")
-                            .setPositiveButton("加入") { _, _ ->
-                                viewModel.importSpotsToNewItinerary(itinerary.id, savedSpots.toList())
-                            }
-                            .setNegativeButton("略過") { _, _ ->
-                                navigateToItineraryDetail(itinerary)
-                                pendingNavigationItinerary = null
-                            }
-                            .show()
-                    } else {
-                        navigateToItineraryDetail(itinerary)
-                    }
+                    pendingNavigationItinerary = itinerary
+                    viewModel.initItineraryDays(itinerary.id, itinerary.total_days, pendingStartDate)
                 }
                 is NetworkResult.Error -> {
                     // 按鈕重新啟用由 sheet 內的 observer 處理
@@ -532,19 +520,20 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // 匯入景點結果（Feature 2）
-        viewModel.importSpotsResult.observe(this) { result ->
+        // 建立行程後初始化天數結果
+        viewModel.initDaysResult.observe(this) { result ->
             when (result) {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    Toast.makeText(this, "景點已匯入行程！", Toast.LENGTH_SHORT).show()
+                    pendingStartDate = null
                     pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
                     pendingNavigationItinerary = null
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "匯入失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    pendingStartDate = null
+                    Toast.makeText(this, "初始化天數失敗：${result.message}", Toast.LENGTH_SHORT).show()
                     pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
                     pendingNavigationItinerary = null
                 }
@@ -686,10 +675,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
         val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
         val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val etStartDate = view.findViewById<TextInputEditText>(R.id.etStartDate)
 
         val destinations = resources.getStringArray(R.array.destinations)
         actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
         actvDest.setOnClickListener { actvDest.showDropDown() }
+
+        var selectedStartDate: String? = null
+        etStartDate.setOnClickListener {
+            val cal = Calendar.getInstance()
+            DatePickerDialog(this, { _, year, month, dayOfMonth ->
+                selectedStartDate = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+                etStartDate.setText(selectedStartDate)
+            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }
+
         val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
         val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
         val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
@@ -723,6 +723,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             tilTitle.error = null
             val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+            pendingStartDate = selectedStartDate
             viewModel.createItinerary(title, totalDays, dest)
         }
 
