@@ -47,6 +47,12 @@
             android:label="租車"
             android:theme="@style/Theme.Fun2Go"
             android:parentActivityName=".ui.MainActivity" />
+
+        <activity
+            android:name=".ui.OrderListActivity"
+            android:label="我的訂單"
+            android:theme="@style/Theme.Fun2Go"
+            android:parentActivityName=".ui.VehicleListActivity" />
     </application>
 
 </manifest>

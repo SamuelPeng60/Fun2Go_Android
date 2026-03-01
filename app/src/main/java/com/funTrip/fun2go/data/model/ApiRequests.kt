@@ -39,3 +39,23 @@ data class SpotRequest(
     val image_url: String? = null,
     val is_public: Boolean = false
 )
+
+// 包車預訂明細
+data class CharterRequest(
+    val vehicle_id: Int,
+    val pickup_location: String,
+    val dropoff_location: String?,
+    val pickup_time: String,       // "2026-03-15T09:00:00"
+    val days: Int,
+    val passenger_count: Int,
+    val contact_name: String,
+    val contact_phone: String,
+    val special_requests: String? = null
+)
+
+// 建立訂單
+data class CreateOrderRequest(
+    val order_type: String = "charter",
+    val itinerary_id: Int? = null,
+    val charter: CharterRequest
+)

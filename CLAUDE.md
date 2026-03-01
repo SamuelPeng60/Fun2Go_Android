@@ -49,6 +49,14 @@
 | VehicleAdapter | `app/src/main/java/com/funTrip/fun2go/ui/adapter/VehicleAdapter.kt` |
 | activity_vehicle_list.xml | `app/src/main/res/layout/activity_vehicle_list.xml` |
 | item_vehicle.xml | `app/src/main/res/layout/item_vehicle.xml` |
+| Order 模型 | `app/src/main/java/com/funTrip/fun2go/data/model/Order.kt` |
+| OrderListActivity | `app/src/main/java/com/funTrip/fun2go/ui/OrderListActivity.kt` |
+| OrderViewModel | `app/src/main/java/com/funTrip/fun2go/ui/viewmodel/OrderViewModel.kt` |
+| OrderAdapter | `app/src/main/java/com/funTrip/fun2go/ui/adapter/OrderAdapter.kt` |
+| activity_order_list.xml | `app/src/main/res/layout/activity_order_list.xml` |
+| item_order.xml | `app/src/main/res/layout/item_order.xml` |
+| bottom_sheet_booking.xml | `app/src/main/res/layout/bottom_sheet_booking.xml` |
+| bottom_sheet_order_detail.xml | `app/src/main/res/layout/bottom_sheet_order_detail.xml` |
 | API Key（不進 git）| `local.properties` → `MAPS_API_KEY=...` |
 
 ---
@@ -230,9 +238,26 @@ sealed class SavedListItem {
 
 ---
 
+### 14. 包車預訂（訂單 / 付款）（v1.9，2026-03-02）
+- **`Order` / `CharterBooking` / `Payment` data class**（`Order.kt`）：完整 SerializedName 對應後端欄位
+- **`ApiService`**：新增 `POST api/orders`、`GET api/orders`、`GET api/orders/{id}`、`POST api/orders/{id}/cancel`、`POST api/orders/{id}/pay`（均需 Token）
+- **`TripRepository`**：新增 `createOrder` / `getOrders` / `getOrderDetail` / `cancelOrder` / `payOrder`
+- **`OrderViewModel`**：`createOrderResult` / `orders` / `orderDetail` / `cancelResult` / `payResult` LiveData + 對應方法
+- **`VehicleListActivity` 修改**：
+  - toolbar 新增 `ic_receipt` menu icon（`menu_vehicle_list.xml`）→ 登入確認 → 開啟 `OrderListActivity`
+  - 點擊車輛 → 登入確認 + `isAvailable` 確認 → `showBookingSheet(vehicle)`
+  - `showBookingSheet()`：DatePickerDialog + TimePickerDialog 組合上車時間；天數變動即時計算預估金額；表單驗證；`viewModel.createOrder()` → 成功 AlertDialog「立即付款？」→ `viewModel.payOrder()`
+  - `setupOrderObservers()`：透過 `_bookingSheetRef` lambda 讓 observer 能控制 sheet 引用
+- **`OrderListActivity`**：ChipGroup 篩選（全部/待付款/已確認/已完成/已取消）；`onResume` 刷新；點擊 → `showOrderDetailSheet()`
+- **`OrderDetailSheet`（`bottom_sheet_order_detail.xml`）**：顯示車輛資訊、預訂明細、聯絡資訊、總金額；`pending` 狀態顯示付款/取消按鈕；操作成功後關閉 Sheet + 刷新列表
+- **`OrderAdapter`**：狀態 Badge 顏色（待付款橘、已確認綠、已完成灰、已取消紅）
+- 新增 `ic_receipt.xml` drawable、`menu_vehicle_list.xml` menu
+- `AndroidManifest.xml` 新增 `OrderListActivity`（parentActivity = VehicleListActivity）
+
+---
+
 ## 已知待完成功能
 - 底部導航「聊天」頁面
-- 車輛預訂（訂單 / 付款）
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤

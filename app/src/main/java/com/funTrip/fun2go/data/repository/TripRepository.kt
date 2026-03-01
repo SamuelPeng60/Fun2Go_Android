@@ -172,4 +172,16 @@ class TripRepository : BaseRepository() {
     suspend fun removeFavorite(spotId: Int, userId: Int) = safeApiCall {
         api.removeFavorite(spotId, UnfavoriteRequest(userId))
     }
+
+    // --- Orders ---
+
+    suspend fun createOrder(req: CreateOrderRequest) = safeApiCall { api.createOrder(req) }
+
+    suspend fun getOrders(status: String?) = safeApiCall { api.getOrders(status) }
+
+    suspend fun getOrderDetail(id: Int) = safeApiCall { api.getOrderDetail(id) }
+
+    suspend fun cancelOrder(id: Int) = safeApiCall { api.cancelOrder(id) }
+
+    suspend fun payOrder(id: Int) = safeApiCall { api.payOrder(id) }
 }

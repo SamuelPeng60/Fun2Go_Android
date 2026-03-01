@@ -112,6 +112,22 @@ interface ApiService {
     @GET("api/vehicles/{id}")
     suspend fun getVehicleDetail(@Path("id") id: Int): Response<Vehicle>
 
+    // --- 訂單 (Orders) ---
+    @POST("api/orders")
+    suspend fun createOrder(@Body req: CreateOrderRequest): Response<Order>
+
+    @GET("api/orders")
+    suspend fun getOrders(@Query("status") status: String? = null): Response<List<Order>>
+
+    @GET("api/orders/{id}")
+    suspend fun getOrderDetail(@Path("id") id: Int): Response<Order>
+
+    @POST("api/orders/{id}/cancel")
+    suspend fun cancelOrder(@Path("id") id: Int): Response<Order>
+
+    @POST("api/orders/{id}/pay")
+    suspend fun payOrder(@Path("id") id: Int): Response<Payment>
+
     // --- 收藏 (Favorites) ---
     @POST("api/favorites")
     suspend fun addFavorite(@Body request: FavoriteRequest): Response<Unit>
