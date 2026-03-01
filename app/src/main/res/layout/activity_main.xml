@@ -89,25 +89,6 @@
         android:layout_gravity="bottom"
         android:orientation="vertical">
 
-        <!-- FAB 列 -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="72dp">
-
-            <!-- FAB（右側） -->
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/fabAdd"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end|center_vertical"
-                android:layout_marginEnd="16dp"
-                android:src="@android:drawable/ic_input_add"
-                app:backgroundTint="#F44062"
-                app:tint="@android:color/white"
-                android:contentDescription="Add Itinerary" />
-
-        </FrameLayout>
-
         <!-- 底部導航列 -->
         <LinearLayout
             android:layout_width="match_parent"

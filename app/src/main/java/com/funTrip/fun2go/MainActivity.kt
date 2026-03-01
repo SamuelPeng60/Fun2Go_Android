@@ -230,13 +230,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAdd)
-            .setOnClickListener {
-                requireLogin("登入後即可建立旅遊行程") {
-                    showCreateItinerarySheet()
-                }
-            }
-
         findViewById<MaterialButton>(R.id.btnZoomIn).setOnClickListener {
             if (::googleMap.isInitialized) googleMap.animateCamera(CameraUpdateFactory.zoomIn())
         }
