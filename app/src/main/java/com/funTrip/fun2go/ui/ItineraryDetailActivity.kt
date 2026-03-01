@@ -1,10 +1,13 @@
 package com.funTrip.fun2go.ui
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
+import java.util.Calendar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -57,7 +60,8 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         dayAdapter = ItineraryDayAdapter(
             onAddSpotClick = { day -> showSpotPickerSheet(day) },
-            onRemoveSpotClick = { itSpot, dayId -> showRemoveSpotDialog(itSpot, dayId) }
+            onRemoveSpotClick = { itSpot, dayId -> showRemoveSpotDialog(itSpot, dayId) },
+            onDateClick = { day -> showDatePickerForDay(day) }
         )
         rvDays.layoutManager = LinearLayoutManager(this)
         rvDays.adapter = dayAdapter
@@ -66,7 +70,13 @@ class ItineraryDetailActivity : AppCompatActivity() {
         setupObservers()
 
         fabAddDay.setOnClickListener {
-            if (itineraryId != -1) {
+            if (itineraryId == -1) return@setOnClickListener
+            val itinerary = (viewModel.itineraryDetail.value as? NetworkResult.Success)?.data
+            val totalDays = itinerary?.total_days ?: Int.MAX_VALUE
+            val currentDays = itinerary?.days?.size ?: 0
+            if (currentDays >= totalDays) {
+                Toast.makeText(this, "已達行程天數上限（${totalDays} 天）", Toast.LENGTH_SHORT).show()
+            } else {
                 viewModel.addDay(itineraryId)
             }
         }
@@ -157,6 +167,12 @@ class ItineraryDetailActivity : AppCompatActivity() {
             }
         }
 
+        viewModel.updateDayResult.observe(this) { result ->
+            if (result is NetworkResult.Error) {
+                Snackbar.make(toolbar, "更新日期失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+            }
+        }
+
         viewModel.savedSpots.observe(this) { spots ->
             currentSavedSpots = spots
         }
@@ -171,6 +187,20 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun showDatePickerForDay(itDay: ItineraryDay) {
+        val cal = Calendar.getInstance()
+        itDay.date?.takeIf { it.isNotBlank() }?.let { dateStr ->
+            runCatching {
+                val parts = dateStr.split("-")
+                cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+            }
+        }
+        DatePickerDialog(this, { _, year, month, dayOfMonth ->
+            val dateStr = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+            viewModel.updateDayDate(itineraryId, itDay.id, dateStr)
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     private fun showRemoveSpotDialog(itSpot: ItinerarySpot, dayId: Int) {

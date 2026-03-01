@@ -38,6 +38,9 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     private val _addDayResult = MutableLiveData<NetworkResult<Unit>>()
     val addDayResult: LiveData<NetworkResult<Unit>> = _addDayResult
 
+    private val _updateDayResult = MutableLiveData<NetworkResult<Unit>>()
+    val updateDayResult: LiveData<NetworkResult<Unit>> = _updateDayResult
+
     private val _spotOperationResult = MutableLiveData<NetworkResult<Unit>>()
     val spotOperationResult: LiveData<NetworkResult<Unit>> = _spotOperationResult
 
@@ -52,6 +55,20 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         _deleteResult.value = NetworkResult.Loading()
         viewModelScope.launch {
             _deleteResult.value = repository.deleteItinerary(id)
+        }
+    }
+
+    fun updateDayDate(itineraryId: Int, dayId: Int, date: String) {
+        viewModelScope.launch {
+            val result = repository.updateDay(itineraryId, dayId, mapOf("date" to date))
+            if (result is NetworkResult.Success) {
+                loadItinerary(itineraryId)
+                _updateDayResult.value = NetworkResult.Success(Unit)
+            } else {
+                _updateDayResult.value = NetworkResult.Error(
+                    (result as? NetworkResult.Error)?.message ?: "更新日期失敗"
+                )
+            }
         }
     }
 

@@ -14,7 +14,8 @@ import kotlin.math.*
 
 class ItineraryDayAdapter(
     private val onAddSpotClick: (ItineraryDay) -> Unit = {},
-    private val onRemoveSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> }
+    private val onRemoveSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> },
+    private val onDateClick: (ItineraryDay) -> Unit = {}
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     sealed class Item {
@@ -123,10 +124,18 @@ class ItineraryDayAdapter(
         fun bind(item: Item.Header) {
             val day = item.day
             tvDayNumber.text = "第${day.day_number}天"
-            tvDayDate.text = day.date ?: "尚未設定日期"
+            if (day.date.isNullOrBlank()) {
+                tvDayDate.text = "點擊設定日期"
+                tvDayDate.setTextColor(android.graphics.Color.parseColor("#F44062"))
+            } else {
+                tvDayDate.text = day.date
+                tvDayDate.setTextColor(android.graphics.Color.parseColor("#333333"))
+            }
             val count = day.spots?.size ?: 0
             tvSpotCount.text = "$count 個景點"
             ivChevron.rotation = if (item.isExpanded) 90f else 0f
+
+            tvDayDate.setOnClickListener { onDateClick(day) }
 
             itemView.setOnClickListener {
                 if (day.id in expandedDayIds) expandedDayIds.remove(day.id)
