@@ -22,6 +22,7 @@ import com.funTrip.fun2go.ui.adapter.ItineraryAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import android.widget.ArrayAdapter
@@ -36,6 +37,7 @@ class ItineraryListActivity : AppCompatActivity() {
     private lateinit var pbLoading: ProgressBar
     private lateinit var tvEmpty: TextView
     private lateinit var rvItineraries: RecyclerView
+    private lateinit var fabAdd: FloatingActionButton
     private lateinit var adapter: ItineraryAdapter
 
     private var createDialog: BottomSheetDialog? = null
@@ -50,6 +52,7 @@ class ItineraryListActivity : AppCompatActivity() {
         pbLoading = findViewById(R.id.pbLoading)
         tvEmpty = findViewById(R.id.tvEmpty)
         rvItineraries = findViewById(R.id.rvItineraries)
+        fabAdd = findViewById(R.id.fabAdd)
 
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
@@ -81,6 +84,8 @@ class ItineraryListActivity : AppCompatActivity() {
         rvItineraries.layoutManager = LinearLayoutManager(this)
         rvItineraries.adapter = adapter
 
+        fabAdd.setOnClickListener { showCreateSheet() }
+
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
     }
@@ -98,17 +103,12 @@ class ItineraryListActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_itinerary_list, menu)
-        return true
-    }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> { finish(); true }
-            R.id.action_create_itinerary -> { showCreateSheet(); true }
-            else -> super.onOptionsItemSelected(item)
+        if (item.itemId == android.R.id.home) {
+            finish()
+            return true
         }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun setupObservers() {
