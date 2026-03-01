@@ -43,6 +43,12 @@
 | item_itinerary.xml | `app/src/main/res/layout/item_itinerary.xml` |
 | bottom_sheet_create_edit_spot.xml | `app/src/main/res/layout/bottom_sheet_create_edit_spot.xml` |
 | BaseRepository | `app/src/main/java/com/funTrip/fun2go/data/repository/BaseRepository.kt` |
+| Vehicle 模型 | `app/src/main/java/com/funTrip/fun2go/data/model/Vehicle.kt` |
+| VehicleListActivity | `app/src/main/java/com/funTrip/fun2go/ui/VehicleListActivity.kt` |
+| VehicleViewModel | `app/src/main/java/com/funTrip/fun2go/ui/viewmodel/VehicleViewModel.kt` |
+| VehicleAdapter | `app/src/main/java/com/funTrip/fun2go/ui/adapter/VehicleAdapter.kt` |
+| activity_vehicle_list.xml | `app/src/main/res/layout/activity_vehicle_list.xml` |
+| item_vehicle.xml | `app/src/main/res/layout/item_vehicle.xml` |
 | API Key（不進 git）| `local.properties` → `MAPS_API_KEY=...` |
 
 ---
@@ -190,6 +196,23 @@ sealed class SavedListItem {
 
 ---
 
+### 13. 租車（車輛瀏覽）（v1.8，2026-03-02）
+- **底部導航**新增第 3 個按鈕 `btnNavCharter`（`ic_car.xml`），排列：地圖 | 探索 | 租車 | 個人
+- 點擊 → 直接開啟 `VehicleListActivity`（**公開頁面，不需登入**）
+- **`Vehicle` data class**：`id` / `name` / `type` / `capacity` / `pricePerDay`（String） / `imageUrl` / `description` / `isAvailable`
+- **`ApiService`**：`GET api/vehicles?type&available`、`GET api/vehicles/{id}`（無需 Token）
+- **`TripRepository`**：`getVehicles(type, available)`、`getVehicleDetail(id)`
+- **`VehicleViewModel`**：`fetchVehicles(type?, available?)` → `_vehicles: LiveData<NetworkResult<List<Vehicle>>>`
+- **`VehicleListActivity`**：
+  - `MaterialToolbar`「租車」標題 + 返回按鈕
+  - `ChipGroup`（singleSelection）篩選：全部 / 轎車（sedan_4）/ 九人座（van_9）/ 巴士（bus_20）
+  - 選非「全部」時自動帶 `available=true` 查詢
+  - `onResume` 每次進入刷新（依 `currentType`）
+- **`VehicleAdapter`**：Coil 載圖（placeholder 灰色），型別中文化，`isAvailable=false` 顯示紅色「暫不可用」
+- `pricePerDay` 格式化：`NT$ X,XXX / 天`（NumberFormat）
+
+---
+
 ### 12. 行程建立流程重構（v1.7，2026-03-01）
 - **建立行程表單新增起始日期欄位**（`bottom_sheet_create_itinerary.xml`，DatePickerDialog）
 - **`TripRepository.initItineraryDays()`**：依 totalDays 迴圈呼叫 `addDay()` + `updateDay()` 設定日期
@@ -209,6 +232,7 @@ sealed class SavedListItem {
 
 ## 已知待完成功能
 - 底部導航「聊天」頁面
+- 車輛預訂（訂單 / 付款）
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤
