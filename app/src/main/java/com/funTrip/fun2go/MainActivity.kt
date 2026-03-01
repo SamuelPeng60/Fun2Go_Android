@@ -409,10 +409,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             AlertDialog.Builder(this)
                 .setTitle("選擇行程")
                 .setItems(itineraries.map { it.title }.toTypedArray()) { _, which ->
+                    val selected = itineraries[which]
                     savedSpots.add(spot)
                     viewModel.addSavedSpot(spot)
                     syncButton()
-                    viewModel.addSpotToExistingItinerary(itineraries[which].id, spot)
+                    viewModel.addSpotToExistingItinerary(selected.id, spot)
+                    Toast.makeText(this, "「${spot.name}」已加入「${selected.title}」", Toast.LENGTH_SHORT).show()
                 }
                 .show()
         }
@@ -551,10 +553,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         // 加入景點到現有行程結果（Feature 3）
         viewModel.addSpotToItineraryResult.observe(this) { result ->
-            when (result) {
-                is NetworkResult.Loading -> Unit
-                is NetworkResult.Success -> Toast.makeText(this, "景點已加入行程！", Toast.LENGTH_SHORT).show()
-                is NetworkResult.Error -> Toast.makeText(this, "加入行程失敗：${result.message}", Toast.LENGTH_SHORT).show()
+            if (result is NetworkResult.Error) {
+                Toast.makeText(this, "加入行程失敗：${result.message}", Toast.LENGTH_LONG).show()
             }
         }
 
