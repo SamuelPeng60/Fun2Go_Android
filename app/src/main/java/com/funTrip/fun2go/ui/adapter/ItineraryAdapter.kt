@@ -11,7 +11,8 @@ import com.funTrip.fun2go.data.model.Itinerary
 
 class ItineraryAdapter(
     private val onItemClick: (Itinerary) -> Unit,
-    private val onEditClick: (Itinerary) -> Unit
+    private val onEditClick: (Itinerary) -> Unit,
+    private val onDeleteClick: (Itinerary) -> Unit
 ) : RecyclerView.Adapter<ItineraryAdapter.ViewHolder>() {
 
     private var items: List<Itinerary> = emptyList()
@@ -38,6 +39,7 @@ class ItineraryAdapter(
         private val tvDates: TextView = view.findViewById(R.id.tvDates)
         private val tvDayCount: TextView = view.findViewById(R.id.tvDayCount)
         private val btnEdit: ImageButton = view.findViewById(R.id.btnEdit)
+        private val btnDelete: ImageButton = view.findViewById(R.id.btnDelete)
 
         fun bind(itinerary: Itinerary) {
             tvTitle.text = itinerary.title
@@ -55,6 +57,7 @@ class ItineraryAdapter(
 
             itemView.setOnClickListener { onItemClick(itinerary) }
             btnEdit.setOnClickListener { onEditClick(itinerary) }
+            btnDelete.setOnClickListener { onDeleteClick(itinerary) }
         }
     }
 }

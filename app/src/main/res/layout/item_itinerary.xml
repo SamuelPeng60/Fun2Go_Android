@@ -58,6 +58,16 @@
             android:tint="#AAAAAA"
             android:contentDescription="編輯" />
 
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_delete"
+            android:tint="#AAAAAA"
+            android:contentDescription="刪除" />
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

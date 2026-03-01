@@ -70,23 +70,12 @@ class ItineraryDetailActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_itinerary_detail, menu)
-        return true
-    }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                true
-            }
-            R.id.action_delete_itinerary -> {
-                showDeleteConfirmDialog()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+        if (item.itemId == android.R.id.home) {
+            finish()
+            return true
         }
+        return super.onOptionsItemSelected(item)
     }
 
     private fun setupObservers() {
@@ -148,16 +137,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
             currentSavedSpots = spots
         }
 
-        viewModel.deleteResult.observe(this) { result ->
-            when (result) {
-                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
-                is NetworkResult.Success -> finish()
-                is NetworkResult.Error -> {
-                    pbLoading.visibility = View.GONE
-                    Snackbar.make(toolbar, "刪除失敗：${result.message}", Snackbar.LENGTH_LONG).show()
-                }
-            }
-        }
     }
 
     private fun showDatePickerForDay(itDay: ItineraryDay) {
@@ -214,14 +193,4 @@ class ItineraryDetailActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showDeleteConfirmDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("刪除行程")
-            .setMessage("確定要刪除此行程嗎？此操作無法復原。")
-            .setPositiveButton("刪除") { _, _ ->
-                viewModel.deleteItinerary(itineraryId)
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
 }

@@ -9,6 +9,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -65,6 +66,16 @@ class ItineraryListActivity : AppCompatActivity() {
             },
             onEditClick = { itinerary ->
                 showEditSheet(itinerary)
+            },
+            onDeleteClick = { itinerary ->
+                AlertDialog.Builder(this)
+                    .setTitle("刪除行程")
+                    .setMessage("確定要刪除「${itinerary.title}」？此操作無法復原。")
+                    .setPositiveButton("刪除") { _, _ ->
+                        viewModel.deleteItinerary(itinerary.id)
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
             }
         )
         rvItineraries.layoutManager = LinearLayoutManager(this)
@@ -109,7 +120,7 @@ class ItineraryListActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val list = result.data ?: emptyList()
                     if (list.isEmpty()) {
-                        tvEmpty.text = "尚無行程，點 ＋ 建立第一個行程"
+                        tvEmpty.text = "尚無行程"
                         tvEmpty.visibility = View.VISIBLE
                         rvItineraries.visibility = View.GONE
                     } else {
@@ -124,6 +135,22 @@ class ItineraryListActivity : AppCompatActivity() {
                     tvEmpty.text = "載入失敗，請重新整理"
                     tvEmpty.visibility = View.VISIBLE
                     Snackbar.make(toolbar, "載入失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        viewModel.deleteResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> {
+                    pbLoading.visibility = View.GONE
+                    viewModel.currentUser?.id?.takeIf { it > 0 }?.let {
+                        viewModel.fetchUserItineraries(it)
+                    }
+                }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    Snackbar.make(toolbar, "刪除失敗：${result.message}", Snackbar.LENGTH_LONG).show()
                 }
             }
         }
