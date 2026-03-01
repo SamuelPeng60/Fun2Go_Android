@@ -6,7 +6,6 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import java.util.Calendar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -23,7 +22,6 @@ import com.funTrip.fun2go.ui.adapter.SpotPickerAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 
 class ItineraryDetailActivity : AppCompatActivity() {
@@ -33,7 +31,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
     private lateinit var pbLoading: ProgressBar
     private lateinit var tvEmptyDays: TextView
     private lateinit var rvDays: RecyclerView
-    private lateinit var fabAddDay: FloatingActionButton
     private lateinit var dayAdapter: ItineraryDayAdapter
 
     private var itineraryId: Int = -1
@@ -50,7 +47,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
         pbLoading = findViewById(R.id.pbLoading)
         tvEmptyDays = findViewById(R.id.tvEmptyDays)
         rvDays = findViewById(R.id.rvDays)
-        fabAddDay = findViewById(R.id.fabAddDay)
 
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
@@ -68,18 +64,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
-
-        fabAddDay.setOnClickListener {
-            if (itineraryId == -1) return@setOnClickListener
-            val itinerary = (viewModel.itineraryDetail.value as? NetworkResult.Success)?.data
-            val totalDays = itinerary?.total_days ?: Int.MAX_VALUE
-            val currentDays = itinerary?.days?.size ?: 0
-            if (currentDays >= totalDays) {
-                Toast.makeText(this, "已達行程天數上限（${totalDays} 天）", Toast.LENGTH_SHORT).show()
-            } else {
-                viewModel.addDay(itineraryId)
-            }
-        }
 
         if (itineraryId != -1) {
             viewModel.loadItinerary(itineraryId)
@@ -137,19 +121,6 @@ class ItineraryDetailActivity : AppCompatActivity() {
                     tvEmptyDays.visibility = View.GONE
                     rvDays.visibility = View.GONE
                     Snackbar.make(toolbar, "載入失敗：${result.message}", Snackbar.LENGTH_LONG).show()
-                }
-            }
-        }
-
-        viewModel.addDayResult.observe(this) { result ->
-            when (result) {
-                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
-                is NetworkResult.Success -> { /* itineraryDetail observer 負責 refresh */ }
-                is NetworkResult.Error -> {
-                    pbLoading.visibility = View.GONE
-                    val msg = if (result.message?.contains("Forbidden", ignoreCase = true) == true)
-                        "此行程不屬於您，無法新增天數" else "新增天數失敗：${result.message}"
-                    Snackbar.make(toolbar, msg, Snackbar.LENGTH_LONG).show()
                 }
             }
         }

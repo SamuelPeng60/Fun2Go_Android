@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:gravity="center"
-            android:text="尚無行程，點 ＋ 建立第一個行程"
+            android:text="尚無行程"
             android:textColor="#AAAAAA"
             android:textSize="15sp"
             android:visibility="gone" />
@@ -40,20 +40,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingBottom="80dp"
+            android:paddingBottom="16dp"
             android:paddingTop="8dp"
             android:visibility="gone" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabAdd"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="16dp"
-            android:src="@android:drawable/ic_input_add"
-            android:contentDescription="新增行程"
-            app:backgroundTint="#F44062"
-            app:tint="@android:color/white" />
 
     </FrameLayout>
 

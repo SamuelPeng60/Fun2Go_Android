@@ -22,7 +22,6 @@ import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -36,7 +35,6 @@ class ItineraryListActivity : AppCompatActivity() {
     private lateinit var pbLoading: ProgressBar
     private lateinit var tvEmpty: TextView
     private lateinit var rvItineraries: RecyclerView
-    private lateinit var fabAdd: FloatingActionButton
     private lateinit var adapter: ItineraryAdapter
 
     private var createDialog: BottomSheetDialog? = null
@@ -51,7 +49,6 @@ class ItineraryListActivity : AppCompatActivity() {
         pbLoading = findViewById(R.id.pbLoading)
         tvEmpty = findViewById(R.id.tvEmpty)
         rvItineraries = findViewById(R.id.rvItineraries)
-        fabAdd = findViewById(R.id.fabAdd)
 
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
@@ -72,14 +69,6 @@ class ItineraryListActivity : AppCompatActivity() {
         )
         rvItineraries.layoutManager = LinearLayoutManager(this)
         rvItineraries.adapter = adapter
-
-        fabAdd.setOnClickListener {
-            if (viewModel.hasValidToken) {
-                showCreateSheet()
-            } else {
-                Snackbar.make(toolbar, "正在登入中，請稍候...", Snackbar.LENGTH_SHORT).show()
-            }
-        }
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
