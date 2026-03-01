@@ -71,19 +71,20 @@
 - 點擊切換，重新過濾地圖 Marker
 
 ### 3. 我的列表（儲存景點）
-- 景點詳情 BottomSheet 有「＋ 加入列表」按鈕，可切換已加入／未加入狀態
-- 底部「列表」按鈕開啟 `bottom_sheet_saved_list.xml`，顯示所有已儲存景點
-- 列表中每個景點可點 X 刪除
+- 景點詳情 BottomSheet 有「加入行程」按鈕（3 步驟閘門）：
+  1. 未登入 → 彈出登入 Sheet
+  2. 未建立行程 → AlertDialog 提示前往建立
+  3. 已有行程 → 行程選擇器，選取後加入本地列表並呼叫 `addSpotToExistingItinerary`
 - 使用 Room DB 持久化儲存（`saved_spots` 資料表）
 - App 啟動時從 Room 載入已儲存景點（`hasLoadedFromDb` flag 防止重複載入）
 
 ### 4. 景點間距離估算（Haversine 公式）
-- 列表中相鄰景點之間顯示距離與預估開車時間
+- 行程詳情頁中，同一天相鄰景點之間顯示距離與預估開車時間
 - **不使用任何 API**，本地計算（原 Distance Matrix API 因 REQUEST_DENIED 棄用）
 - 計算邏輯：直線距離 × 1.3（路程係數），平均時速 **25 km/h**（台灣市區）
 - 距離格式：`X 公尺` / `X.X 公里` / `X 公里`
 - 時間格式：`約 X 分鐘` / `約 Xh Xm`
-- 位置：`MainViewModel.kt` → `calcDistanceInfo()`
+- 位置：`ItineraryDayAdapter.kt` → `calcDistance()` companion object
 
 ### 5. 個人資料頁
 - 點擊左上角頭像開啟 `bottom_sheet_profile.xml`
@@ -99,32 +100,27 @@
 - `googleMap.isMyLocationEnabled = true` 顯示持續的藍色定位點
 - 首次進入地圖時自動請求 `ACCESS_FINE_LOCATION` 權限
 
-### 7. FAB 新增行程（含匯入景點 + 加入行程）
-- MainActivity FAB → `requireLogin` → `showCreateItinerarySheet()` → `POST /api/itineraries`
-- 建立成功後：若「我的列表」有景點，彈出 AlertDialog 詢問是否匯入第一天
-  - 「加入」→ `importSpotsToNewItinerary(itineraryId, spots)` → addDay(day_number=1) + 逐一 addSpotToDay → 導向 ItineraryDetailActivity
-  - 「略過」→ 直接導向 ItineraryDetailActivity
-- 景點詳情 BottomSheet 的「加入列表」按鈕：已登入且有行程時彈出行程選擇器
-  - 選現有行程 → 加入本地列表 + `addSpotToExistingItinerary`（取最後一天或新建 Day 1）
-  - 選「＋ 新增行程」→ 加入本地列表 + 開啟建立行程 Sheet
-  - 選「只加入列表」→ 只加入本地列表
-  - 已加入 → 直接移除，不顯示對話框
+### 7. 建立行程入口
+- **首頁（MainActivity）**：已移除 FAB，建立行程統一透過行程列表頁操作
+- **行程列表頁**：右下角粉紅色 FAB → `showCreateSheet()` → `POST /api/itineraries`
+  - 表單：標題（必填）、目的地（下拉）、天數、起始日期（DatePickerDialog，可選）
+  - 建立成功後自動呼叫 `initItineraryDays()`，依 totalDays 逐一建立天數並設定日期
+  - 完成後導向 `ItineraryDetailActivity`（天數已全部預建）
 - `MainViewModel.cachedUserItineraries`：`onResume` + `loginResult` 成功後刷新快取
 
 ### 8. 行程列表（ItineraryListActivity）
 - 底部導航「探索」按鈕（`btnNavExplore`）→ `requireLogin` → 開啟 `ItineraryListActivity`
 - `ItineraryViewModel` 獨立管理行程列表與建立/編輯/刪除
 - `onResume` 每次進入都刷新 `getUserItineraries(userId)`
-- 列表項目支援：點擊進入詳情、編輯按鈕（修改標題/日期）
-- FAB 可在列表頁建立新行程（不含匯入景點功能）
-- `ItineraryAdapter`：顯示標題、日期範圍、天數（從 days.size 或日期差計算）
+- 列表項目支援：點擊進入詳情、編輯鉛筆按鈕、**垃圾桶刪除按鈕**（AlertDialog 確認後刪除，成功自動刷新列表）
+- 右下角 FAB 建立新行程
+- `ItineraryAdapter`：顯示標題、目的地、天數（`onItemClick` / `onEditClick` / `onDeleteClick`）
 
 ### 9. 行程詳情（ItineraryDetailActivity）
-- `ItineraryDayAdapter` 顯示天數列表
-- 右下角 FAB（`fabAddDay`）→ `addDay(itineraryId, currentDayCount + 1)` → 自動 reload
+- `ItineraryDayAdapter` 顯示天數列表（天數在建立行程時已自動初始化）
 - `POST /api/itineraries/{id}/days` 需帶 `{ "day_number": N }` body（**重要**：沒有 body 會報錯）
-- 空狀態文字提示「點擊右下角 ＋ 新增第一天」
-- Toolbar 右上角刪除按鈕 → 確認 Dialog → `DELETE /api/itineraries/{id}` → finish()
+- 天數 header 顯示日期，點擊可透過 DatePickerDialog 修改（`viewModel.updateDayDate()`）
+- 刪除行程按鈕已移至**行程列表頁**每筆旁的垃圾桶（詳情頁 toolbar 不再有刪除 menu）
 
 ### 10. Google 登入 + JWT 認證
 - 登入流程：App 開啟 → 直接進主畫面，需要登入才能使用保護功能（FAB 新增行程、個人資料）
@@ -156,7 +152,7 @@ data class User(
 ```kotlin
 sealed class SavedListItem {
     data class SpotItem(val spot: Spot) : SavedListItem()
-    data class DistanceSeparator(val distanceText: String, val durationText: String) : SavedListItem()
+    // DistanceSeparator 已移除（距離改在 ItineraryDayAdapter 中顯示）
 }
 ```
 
@@ -191,6 +187,23 @@ sealed class SavedListItem {
 - `ApiService`：`PUT api/spots/{id}` / `DELETE api/spots/{id}`；`createSpot` 改接 `SpotRequest`
 - `MainViewModel`：`updateSpotResult` / `deleteSpotResult` LiveData + 對應方法
 - 新增 Drawable：`ic_edit.xml`（鉛筆）、`ic_delete.xml`（垃圾桶）
+
+---
+
+### 12. 行程建立流程重構（v1.7，2026-03-01）
+- **建立行程表單新增起始日期欄位**（`bottom_sheet_create_itinerary.xml`，DatePickerDialog）
+- **`TripRepository.initItineraryDays()`**：依 totalDays 迴圈呼叫 `addDay()` + `updateDay()` 設定日期
+- `ItineraryViewModel` / `MainViewModel` 各自新增 `initDaysResult` LiveData + `initItineraryDays()`
+- `ItineraryListActivity`：新增 `pendingItinerary` 欄位；建立成功後呼叫 `initItineraryDays`，完成後導向詳情頁
+- **FAB 整理**：
+  - `MainActivity` FAB（建立行程）→ 已移除
+  - `ItineraryDetailActivity` FAB（新增天數）→ 已移除（天數在建立時自動初始化）
+  - `ItineraryListActivity` FAB（建立行程）→ 保留，右下角粉紅色
+- **刪除行程按鈕搬移**：從 `ItineraryDetailActivity` toolbar → `item_itinerary.xml` 編輯按鈕旁
+  - `ItineraryAdapter` 新增 `onDeleteClick` callback
+  - `ItineraryListActivity` 觀察 `deleteResult`，成功後刷新列表
+- **`order_index` 修正**：`addSpotToExistingItinerary` / `importSpotsToNewItinerary` 改用 1-based index
+- **景點加入行程流程**：`btnAddToList` → 3步驟閘門（登入 → 有行程 → 選擇器），加入後即時 Toast
 
 ---
 
