@@ -265,3 +265,6 @@ sealed class SavedListItem {
 - `RetrofitClient.tokenManager` 由 `MainViewModel.init` 注入，`ItineraryViewModel` 共用同一 singleton
 - `GET /api/spots` 回傳的 user-created spot 可能缺少 `"id"` 欄位（後端問題），Gson 會將 `val id: Int` 設為 0 → 建立/編輯後不呼叫 `fetchAllSpots()`，改以 POST/PUT response 直接更新 `allSpots`
 - `DELETE /api/spots/{id}` 成功回傳 **204 No Content**（無 body）；已修復 `BaseRepository.safeApiCall` 的 204 處理：`body()=null` 時改回傳 `NetworkResult.Success(Unit)` 而非 Error
+- **v1.5**：`POST /api/itineraries` 的 `user_id` 現在從 JWT 取得（忽略 body 中的 user_id），Android 端不需傳也不應傳 user_id；新增 `is_public` 欄位支援
+- **v1.6**：`GET /api/spots` 改用 optionalAuth（有 Token 顯示自己私人景點，無 Token 不回 401）；Spot 回應新增 `source`（"official"/"user"）和 `creator_id` 欄位；`PUT/DELETE /api/spots/{id}` 僅限建立者（403 Forbidden），系統景點不可改刪（403）；DELETE 引用保護：其他用戶行程已引用時回 400
+- **v1.7（多語系 i18n）**：景點名稱/地址、行程標題/目的地、車輛名稱/描述、上下車地點等欄位後端改為 JSONB 儲存；**Android 端完全向後相容**（API 預設回傳 zh-TW 純文字字串，無需修改）；若未來需切換語言可加 `?lang=en` query 或 `Accept-Language` header
