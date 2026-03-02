@@ -58,6 +58,11 @@
 | bottom_sheet_booking.xml | `app/src/main/res/layout/bottom_sheet_booking.xml` |
 | bottom_sheet_order_detail.xml | `app/src/main/res/layout/bottom_sheet_order_detail.xml` |
 | API Key（不進 git）| `local.properties` → `MAPS_API_KEY=...` |
+| PublicItineraryListActivity | `app/src/main/java/com/funTrip/fun2go/ui/PublicItineraryListActivity.kt` |
+| PublicItineraryAdapter | `app/src/main/java/com/funTrip/fun2go/ui/adapter/PublicItineraryAdapter.kt` |
+| activity_public_itinerary_list.xml | `app/src/main/res/layout/activity_public_itinerary_list.xml` |
+| item_public_itinerary.xml | `app/src/main/res/layout/item_public_itinerary.xml` |
+| menu_public_itinerary_list.xml | `app/src/main/res/menu/menu_public_itinerary_list.xml` |
 
 ---
 
@@ -253,6 +258,33 @@ sealed class SavedListItem {
 - **`OrderAdapter`**：狀態 Badge 顏色（待付款橘、已確認綠、已完成灰、已取消紅）
 - 新增 `ic_receipt.xml` drawable、`menu_vehicle_list.xml` menu
 - `AndroidManifest.xml` 新增 `OrderListActivity`（parentActivity = VehicleListActivity）
+
+---
+
+---
+
+### 15. 景點收藏同步後端（v2.0，2026-03-03）
+- **加入行程（步驟三）** → 同步呼叫 `viewModel.addFavorite(uid, spot.id)` → `POST /api/users/{id}/favorites`
+- **移除已加入景點** → 同步呼叫 `viewModel.removeFavorite(spot.id, uid)` → `DELETE /api/spots/{id}/favorites`
+- **刪除自訂景點（confirmDeleteSpot）** → 若景點在 savedSpots，也同步 `removeFavorite`
+- **登入成功後** → 呼叫 `viewModel.fetchUserFavorites(userId)` → observer 將後端 favorites 補入 Room DB（跳過本地已有的景點）
+- `MainViewModel` 的 `addFavorite` / `removeFavorite` / `fetchUserFavorites` / `userFavoritesResponse` 均已在前版備好，本版只補 `MainActivity` 呼叫點
+
+---
+
+### 16. 公開行程探索 + 行程複製（v2.0，2026-03-03）
+- **底部導航「探索」** (`btnNavExplore`) 改為直接開啟 `PublicItineraryListActivity`（**不再需要登入**）
+- **`ItineraryViewModel`** 新增：
+  - `publicItineraries` LiveData + `fetchPublicItineraries()` → `GET /api/itineraries`（limit=20, offset=0）
+  - `copyResult` LiveData + `copyItinerary(id)` → `POST /api/itineraries/{id}/copy`
+- **`PublicItineraryListActivity`**：
+  - `onResume` 每次刷新公開行程列表
+  - Toolbar 右側「我的行程」圖示 → 未登入 Toast / 已登入開啟 `ItineraryListActivity`
+  - 點擊行程卡片 → 開啟 `ItineraryDetailActivity`（傳 id + title，唯讀瀏覽；若嘗試修改他人行程後端回 403，UI 顯示 Snackbar）
+  - 點「複製行程」→ 未登入 Toast；已登入呼叫 `viewModel.copyItinerary(id)` → 成功 AlertDialog「前往我的行程？」
+- **`PublicItineraryAdapter`**：顯示標題、目的地、天數、作者名稱（by xxx）、複製次數、複製按鈕（粉紅色）
+- 新增 Drawable：`ic_copy.xml`（content_copy）、`ic_list.xml`（清單）
+- `AndroidManifest.xml` 新增 `PublicItineraryListActivity`（parentActivity = MainActivity）
 
 ---
 

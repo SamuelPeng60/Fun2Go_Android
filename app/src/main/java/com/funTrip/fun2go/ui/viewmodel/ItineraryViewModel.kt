@@ -131,6 +131,24 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // ─── Public Itinerary List ────────────────────────────────────────────
+    private val _publicItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
+    val publicItineraries: LiveData<NetworkResult<List<Itinerary>>> = _publicItineraries
+
+    fun fetchPublicItineraries() {
+        _publicItineraries.value = NetworkResult.Loading()
+        viewModelScope.launch { _publicItineraries.value = repository.getItineraries(20, 0) }
+    }
+
+    // ─── 行程複製 ─────────────────────────────────────────────────────────
+    private val _copyResult = MutableLiveData<NetworkResult<Itinerary>>()
+    val copyResult: LiveData<NetworkResult<Itinerary>> = _copyResult
+
+    fun copyItinerary(id: Int) {
+        _copyResult.value = NetworkResult.Loading()
+        viewModelScope.launch { _copyResult.value = repository.copyItinerary(id) }
+    }
+
     // ─── User Itinerary List (used by ItineraryListActivity) ──────────────
     private val _userItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItineraries: LiveData<NetworkResult<List<Itinerary>>> = _userItineraries

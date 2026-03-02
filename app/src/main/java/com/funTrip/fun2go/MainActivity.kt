@@ -36,6 +36,7 @@ import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
 import com.funTrip.fun2go.ui.ItineraryListActivity
+import com.funTrip.fun2go.ui.PublicItineraryListActivity
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -243,9 +244,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         findViewById<ImageButton>(R.id.btnNavExplore).setOnClickListener {
-            requireLogin("登入後即可管理行程") {
-                startActivity(Intent(this, ItineraryListActivity::class.java))
-            }
+            startActivity(Intent(this, PublicItineraryListActivity::class.java))
         }
 
         findViewById<ImageButton>(R.id.btnNavCharter).setOnClickListener {
@@ -386,6 +385,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 savedSpots.removeAll { it.id == spot.id }
                 viewModel.removeSavedSpot(spot.id)
                 syncButton()
+                // 同步刪除後端 favorites
+                val uid = viewModel.currentUser?.id ?: 0
+                if (uid > 0) viewModel.removeFavorite(spot.id, uid)
                 return@setOnClickListener
             }
             // 步驟一：必須登入
@@ -412,6 +414,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     savedSpots.add(spot)
                     viewModel.addSavedSpot(spot)
                     syncButton()
+                    // 同步到後端 favorites
+                    val uid = viewModel.currentUser?.id ?: 0
+                    if (uid > 0) viewModel.addFavorite(uid, spot.id)
                     viewModel.addSpotToExistingItinerary(selected.id, spot)
                     Toast.makeText(this, "「${spot.name}」已加入「${selected.title}」", Toast.LENGTH_SHORT).show()
                 }
@@ -460,7 +465,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> {
                     showLoading(false)
                     Toast.makeText(this, "歡迎，${result.data?.name}！", Toast.LENGTH_SHORT).show()
-                    result.data?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
+                    result.data?.id?.takeIf { it > 0 }?.let { userId ->
+                        viewModel.fetchUserItineraries(userId)
+                        viewModel.fetchUserFavorites(userId)
+                    }
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
@@ -533,6 +541,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     Toast.makeText(this, "初始化天數失敗：${result.message}", Toast.LENGTH_SHORT).show()
                     pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
                     pendingNavigationItinerary = null
+                }
+            }
+        }
+
+        // 登入後從後端同步收藏清單
+        viewModel.userFavoritesResponse.observe(this) { result ->
+            if (result is NetworkResult.Success) {
+                result.data?.forEach { spot ->
+                    if (!savedSpots.any { it.id == spot.id }) {
+                        viewModel.addSavedSpot(spot)
+                        savedSpots.add(spot)
+                    }
                 }
             }
         }
@@ -876,6 +896,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                             if (savedSpots.any { it.id == spot.id }) {
                                 savedSpots.removeAll { it.id == spot.id }
                                 viewModel.removeSavedSpot(spot.id)
+                                val uid = viewModel.currentUser?.id ?: 0
+                                if (uid > 0) viewModel.removeFavorite(spot.id, uid)
                             }
                             Toast.makeText(this@MainActivity, "景點已刪除", Toast.LENGTH_SHORT).show()
                         } else if (result is NetworkResult.Error) {
