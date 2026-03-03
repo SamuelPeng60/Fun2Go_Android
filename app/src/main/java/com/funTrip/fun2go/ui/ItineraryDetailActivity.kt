@@ -10,6 +10,7 @@ import java.util.Calendar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
@@ -61,6 +62,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
         )
         rvDays.layoutManager = LinearLayoutManager(this)
         rvDays.adapter = dayAdapter
+        setupDragDrop()
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
@@ -137,6 +139,46 @@ class ItineraryDetailActivity : AppCompatActivity() {
             currentSavedSpots = spots
         }
 
+        viewModel.reorderResult.observe(this) { result ->
+            if (result is NetworkResult.Error)
+                Snackbar.make(toolbar, "排序同步失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+        }
+    }
+
+    private fun setupDragDrop() {
+        val callback = object : ItemTouchHelper.Callback() {
+            override fun getMovementFlags(rv: RecyclerView, vh: RecyclerView.ViewHolder) =
+                if (vh is ItineraryDayAdapter.SpotViewHolder)
+                    makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                else makeMovementFlags(0, 0)
+
+            override fun isLongPressDragEnabled() = true
+
+            override fun onMove(
+                rv: RecyclerView,
+                source: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean = dayAdapter.onSpotMoved(source.adapterPosition, target.adapterPosition)
+
+            override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {}
+
+            override fun onSelectedChanged(vh: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(vh, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG)
+                    vh?.itemView?.elevation = 8f
+            }
+
+            override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) {
+                super.clearView(rv, vh)
+                vh.itemView.elevation = 0f
+                dayAdapter.commitDragOrder { dayId, spotIds ->
+                    viewModel.reorderSpots(dayId, spotIds)
+                }
+            }
+        }
+        val helper = ItemTouchHelper(callback)
+        helper.attachToRecyclerView(rvDays)
+        dayAdapter.itemTouchHelper = helper
     }
 
     private fun showDatePickerForDay(itDay: ItineraryDay) {

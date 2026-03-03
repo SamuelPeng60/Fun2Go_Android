@@ -27,7 +27,7 @@ data class UnfavoriteRequest(val user_id: Int) // DELETE body 比較特殊，通
 data class AddDayRequest(val day_number: Int)
 
 // 排序
-data class ReorderRequest(val spot_ids: List<Int>) // 假設傳送新的 ID 順序陣列
+data class ReorderRequest(val spots: List<Int>)
 
 // 建立/更新 景點
 data class SpotRequest(

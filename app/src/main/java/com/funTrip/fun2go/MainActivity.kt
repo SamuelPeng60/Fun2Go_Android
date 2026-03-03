@@ -31,6 +31,7 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
+import com.funTrip.fun2go.data.model.ItineraryDay
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.model.SpotRequest
 import com.funTrip.fun2go.data.model.UploadResponse
@@ -422,10 +423,34 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     savedSpots.add(spot)
                     viewModel.addSavedSpot(spot)
                     syncButton()
-                    // 同步到後端 favorites
                     val uid = viewModel.currentUser?.id ?: 0
                     if (uid > 0) viewModel.addFavorite(uid, spot.id)
-                    viewModel.addSpotToExistingItinerary(selected.id, spot)
+
+                    viewModel.fetchItineraryDetail(selected.id)
+                    var seenLoading = false
+                    var dayPickerObs: Observer<NetworkResult<Itinerary>>? = null
+                    dayPickerObs = Observer { result ->
+                        when (result) {
+                            is NetworkResult.Loading -> seenLoading = true
+                            is NetworkResult.Success -> if (seenLoading) {
+                                seenLoading = false
+                                viewModel.itineraryDetail.removeObserver(dayPickerObs!!)
+                                val days = result.data?.days.orEmpty()
+                                when {
+                                    days.isEmpty() -> viewModel.addSpotToExistingItinerary(selected.id, spot)
+                                    days.size == 1 -> viewModel.addSpotToDayById(days[0].id, spot.id, (days[0].spots?.size ?: 0) + 1)
+                                    else           -> showDayPickerDialog(days, spot)
+                                }
+                            }
+                            is NetworkResult.Error -> if (seenLoading) {
+                                seenLoading = false
+                                viewModel.itineraryDetail.removeObserver(dayPickerObs!!)
+                                viewModel.addSpotToExistingItinerary(selected.id, spot)
+                            }
+                            else -> {}
+                        }
+                    }
+                    viewModel.itineraryDetail.observe(this, dayPickerObs!!)
                     Toast.makeText(this, "「${spot.name}」已加入「${selected.title}」", Toast.LENGTH_SHORT).show()
                 }
                 .show()
@@ -1011,6 +1036,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
                 }
                 viewModel.deleteSpotResult.observe(this, observer)
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showDayPickerDialog(days: List<ItineraryDay>, spot: Spot) {
+        val labels = days.map { day ->
+            val dateStr = if (day.date.isNullOrBlank()) "" else " · ${day.date}"
+            "第${day.day_number}天$dateStr（${day.spots?.size ?: 0} 個景點）"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("選擇加入哪一天")
+            .setItems(labels) { _, i ->
+                val day = days[i]
+                viewModel.addSpotToDayById(day.id, spot.id, (day.spots?.size ?: 0) + 1)
             }
             .setNegativeButton("取消", null)
             .show()

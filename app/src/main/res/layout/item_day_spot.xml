@@ -53,4 +53,14 @@
         android:src="@android:drawable/ic_menu_close_clear_cancel"
         android:tint="#CCCCCC" />
 
+    <!-- 拖曳把手 -->
+    <ImageView
+        android:id="@+id/ivDragHandle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="4dp"
+        android:src="@drawable/ic_drag_handle"
+        android:tint="#CCCCCC"
+        android:contentDescription="拖曳排序" />
+
 </LinearLayout>

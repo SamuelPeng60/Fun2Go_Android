@@ -294,6 +294,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addSpotToDayById(dayId: Int, spotId: Int, orderIndex: Int) {
+        _addSpotToItineraryResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.addSpotToDay(dayId, AddSpotToDayRequest(spotId, orderIndex, null, null))
+            _addSpotToItineraryResult.value = when (result) {
+                is NetworkResult.Success -> NetworkResult.Success(Unit)
+                is NetworkResult.Error   -> NetworkResult.Error(result.message ?: "Unknown error")
+                else -> NetworkResult.Error("Unknown error")
+            }
+        }
+    }
+
     fun fetchUserFavorites(userId: Int) {
         _userFavoritesResponse.value = NetworkResult.Loading()
         viewModelScope.launch {

@@ -28,6 +28,8 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     val savedSpots: LiveData<List<SavedSpotEntity>> =
         AppDatabase.getDatabase(application).savedSpotDao().getAllSavedSpots()
 
+    private var lastItineraryId: Int = -1
+
     // ─── Itinerary Detail (used by ItineraryDetailActivity) ───────────────
     private val _itineraryDetail = MutableLiveData<NetworkResult<Itinerary>>()
     val itineraryDetail: LiveData<NetworkResult<Itinerary>> = _itineraryDetail
@@ -55,6 +57,7 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     val spotOperationResult: LiveData<NetworkResult<Unit>> = _spotOperationResult
 
     fun loadItinerary(id: Int) {
+        lastItineraryId = id
         _itineraryDetail.value = NetworkResult.Loading()
         viewModelScope.launch {
             _itineraryDetail.value = repository.getItineraryDetail(id)
@@ -127,6 +130,24 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
                 _spotOperationResult.value = NetworkResult.Error(
                     (result as? NetworkResult.Error)?.message ?: "移除景點失敗"
                 )
+            }
+        }
+    }
+
+    private val _reorderResult = MutableLiveData<NetworkResult<Unit>>()
+    val reorderResult: LiveData<NetworkResult<Unit>> = _reorderResult
+
+    fun reorderSpots(dayId: Int, spotIds: List<Int>) {
+        _reorderResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.reorderSpots(dayId, spotIds)
+            // 失敗時重載以還原伺服器上的真實順序；成功時本地 rebuildList() 已即時刷新距離
+            if (result is NetworkResult.Error && lastItineraryId != -1)
+                loadItinerary(lastItineraryId)
+            _reorderResult.value = when (result) {
+                is NetworkResult.Success -> NetworkResult.Success(Unit)
+                is NetworkResult.Error   -> NetworkResult.Error(result.message ?: "排序失敗")
+                else -> NetworkResult.Error("排序失敗")
             }
         }
     }

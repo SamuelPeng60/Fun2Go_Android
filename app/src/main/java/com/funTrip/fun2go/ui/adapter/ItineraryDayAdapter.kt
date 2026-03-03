@@ -1,11 +1,13 @@
 package com.funTrip.fun2go.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.ItineraryDay
@@ -55,9 +57,44 @@ class ItineraryDayAdapter(
         }
     }
 
+    var itemTouchHelper: ItemTouchHelper? = null
+
     private var days: List<ItineraryDay> = emptyList()
     private val expandedDayIds = mutableSetOf<Int>()
     private var flatList: List<Item> = emptyList()
+    private var dragDayId: Int? = null
+
+    fun onSpotMoved(from: Int, to: Int): Boolean {
+        val fromItem = flatList.getOrNull(from) as? Item.SpotEntry ?: return false
+        val toItem   = flatList.getOrNull(to)   as? Item.SpotEntry ?: return false
+        if (fromItem.dayId != toItem.dayId) return false
+
+        dragDayId = fromItem.dayId
+
+        val newList = flatList.toMutableList()
+        newList.removeAt(from)
+        newList.add(to, fromItem)
+        flatList = newList
+        notifyItemMoved(from, to)
+
+        val dayId = fromItem.dayId
+        val newSpotOrder = flatList.filterIsInstance<Item.SpotEntry>()
+            .filter { it.dayId == dayId }.map { it.itSpot }
+        val dayIndex = days.indexOfFirst { it.id == dayId }
+        if (dayIndex >= 0)
+            days = days.toMutableList().also { it[dayIndex] = days[dayIndex].copy(spots = newSpotOrder) }
+
+        return true
+    }
+
+    fun commitDragOrder(onReorder: (dayId: Int, spotIds: List<Int>) -> Unit) {
+        dragDayId?.let { dayId ->
+            val spotIds = days.firstOrNull { it.id == dayId }?.spots?.map { it.id }
+            if (spotIds != null) onReorder(dayId, spotIds)
+        }
+        dragDayId = null
+        rebuildList()
+    }
 
     fun submitList(newDays: List<ItineraryDay>) {
         days = newDays
@@ -150,6 +187,7 @@ class ItineraryDayAdapter(
         private val tvSpotName: TextView = view.findViewById(R.id.tvSpotName)
         private val tvSpotNote: TextView = view.findViewById(R.id.tvSpotNote)
         private val btnRemove: ImageButton = view.findViewById(R.id.btnRemoveSpot)
+        private val ivDragHandle: ImageView = view.findViewById(R.id.ivDragHandle)
 
         fun bind(item: Item.SpotEntry) {
             val itSpot = item.itSpot
@@ -168,6 +206,13 @@ class ItineraryDayAdapter(
             }
 
             btnRemove.setOnClickListener { onRemoveSpotClick(itSpot, item.dayId) }
+
+            ivDragHandle.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    itemTouchHelper?.startDrag(this@SpotViewHolder)
+                }
+                false
+            }
         }
     }
 
