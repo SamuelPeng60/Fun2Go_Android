@@ -33,7 +33,7 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="12dp"
         android:layout_marginBottom="24dp"
-        android:text="個人資料"
+        android:text="@string/title_profile"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#222222" />
@@ -44,7 +44,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
-        android:text="姓名"
+        android:text="@string/label_name"
         android:textSize="13sp"
         android:textColor="#888888" />
 
@@ -112,7 +112,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="24dp"
-        android:text="儲存修改"
+        android:text="@string/label_save_profile"
         android:textSize="15sp"
         app:backgroundTint="#F44062"
         app:cornerRadius="26dp" />
@@ -126,7 +126,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="12dp"
-        android:text="登出"
+        android:text="@string/label_logout"
         android:textSize="15sp"
         android:textColor="#F44062"
         app:strokeColor="#F44062"

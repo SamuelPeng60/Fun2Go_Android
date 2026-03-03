@@ -72,11 +72,11 @@ class OrderListActivity : AppCompatActivity() {
         val chipGroup = findViewById<ChipGroup>(R.id.chipGroupStatus)
         data class StatusFilter(val label: String, val value: String?)
         val filters = listOf(
-            StatusFilter("全部",   null),
-            StatusFilter("待付款", "pending"),
-            StatusFilter("已確認", "confirmed"),
-            StatusFilter("已完成", "completed"),
-            StatusFilter("已取消", "cancelled")
+            StatusFilter(getString(R.string.status_all),       null),
+            StatusFilter(getString(R.string.status_pending),   "pending"),
+            StatusFilter(getString(R.string.status_confirmed), "confirmed"),
+            StatusFilter(getString(R.string.status_completed), "completed"),
+            StatusFilter(getString(R.string.status_cancelled), "cancelled")
         )
         filters.forEach { f ->
             val chip = Chip(this).apply {
@@ -104,7 +104,7 @@ class OrderListActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val list = result.data ?: emptyList()
                     if (list.isEmpty()) {
-                        tvEmpty.text      = "暫無訂單記錄"
+                        tvEmpty.text      = getString(R.string.empty_orders)
                         tvEmpty.visibility = View.VISIBLE
                         rvOrders.visibility = View.GONE
                     } else {
@@ -115,7 +115,7 @@ class OrderListActivity : AppCompatActivity() {
                 }
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
-                    tvEmpty.text         = "載入失敗：${result.message}"
+                    tvEmpty.text         = getString(R.string.msg_load_orders_failed, result.message ?: "")
                     tvEmpty.visibility   = View.VISIBLE
                     rvOrders.visibility  = View.GONE
                 }
@@ -126,12 +126,12 @@ class OrderListActivity : AppCompatActivity() {
             when (result) {
                 is NetworkResult.Loading -> { /* handled in sheet */ }
                 is NetworkResult.Success -> {
-                    Toast.makeText(this, "訂單已取消", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_order_cancelled), Toast.LENGTH_SHORT).show()
                     detailSheet?.dismiss()
                     viewModel.fetchOrders(currentStatusFilter)
                 }
                 is NetworkResult.Error -> {
-                    Toast.makeText(this, "取消失敗：${result.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.msg_cancel_failed, result.message ?: ""), Toast.LENGTH_LONG).show()
                     detailSheet?.let { sheet ->
                         sheet.findViewById<ProgressBar>(R.id.pbDetailAction)?.visibility = View.GONE
                         sheet.findViewById<MaterialButton>(R.id.btnCancelOrder)?.isEnabled = true
@@ -145,12 +145,12 @@ class OrderListActivity : AppCompatActivity() {
             when (result) {
                 is NetworkResult.Loading -> { /* handled in sheet */ }
                 is NetworkResult.Success -> {
-                    Toast.makeText(this, "付款成功，訂單已確認！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_payment_success), Toast.LENGTH_SHORT).show()
                     detailSheet?.dismiss()
                     viewModel.fetchOrders(currentStatusFilter)
                 }
                 is NetworkResult.Error -> {
-                    Toast.makeText(this, "付款失敗：${result.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.msg_payment_failed, result.message ?: ""), Toast.LENGTH_LONG).show()
                     detailSheet?.let { sheet ->
                         sheet.findViewById<ProgressBar>(R.id.pbDetailAction)?.visibility = View.GONE
                         sheet.findViewById<MaterialButton>(R.id.btnPayNow)?.isEnabled = true
@@ -172,29 +172,29 @@ class OrderListActivity : AppCompatActivity() {
         // 標題列
         val tvDetailStatus = view.findViewById<TextView>(R.id.tvDetailStatus)
         val (statusText, statusColor) = when (order.status) {
-            "pending"   -> Pair("待付款", Color.parseColor("#FF9800"))
-            "confirmed" -> Pair("已確認", Color.parseColor("#4CAF50"))
-            "completed" -> Pair("已完成", Color.parseColor("#9E9E9E"))
-            "cancelled" -> Pair("已取消", Color.parseColor("#F44336"))
+            "pending"   -> Pair(getString(R.string.status_pending),   Color.parseColor("#FF9800"))
+            "confirmed" -> Pair(getString(R.string.status_confirmed), Color.parseColor("#4CAF50"))
+            "completed" -> Pair(getString(R.string.status_completed), Color.parseColor("#9E9E9E"))
+            "cancelled" -> Pair(getString(R.string.status_cancelled), Color.parseColor("#F44336"))
             else        -> Pair(order.status, Color.parseColor("#9E9E9E"))
         }
         tvDetailStatus.text = statusText
         tvDetailStatus.setTextColor(statusColor)
 
         val dateLabel = order.createdAt.take(10)
-        view.findViewById<TextView>(R.id.tvDetailOrderId).text = "訂單 #${order.id} · $dateLabel"
+        view.findViewById<TextView>(R.id.tvDetailOrderId).text = "${getString(R.string.format_order_id, order.id)} · $dateLabel"
 
         // 車輛資訊
         view.findViewById<TextView>(R.id.tvDetailVehicleName).text =
-            booking?.vehicleName ?: "包車訂單"
+            booking?.vehicleName ?: getString(R.string.label_charter_order)
 
         val typeName = when (booking?.vehicleType) {
-            "sedan_4" -> "轎車"
-            "van_9"   -> "九人座"
-            "bus_20"  -> "巴士"
+            "sedan_4" -> getString(R.string.vehicle_type_sedan)
+            "van_9"   -> getString(R.string.vehicle_type_van)
+            "bus_20"  -> getString(R.string.vehicle_type_bus)
             else      -> booking?.vehicleType ?: ""
         }
-        val capacity = booking?.vehicleCapacity?.let { " · 最多${it}人" } ?: ""
+        val capacity = booking?.vehicleCapacity?.let { " · ${getString(R.string.format_capacity, it)}" } ?: ""
         view.findViewById<TextView>(R.id.tvDetailVehicleInfo).text = "$typeName$capacity"
 
         // 預訂明細
@@ -226,7 +226,7 @@ class OrderListActivity : AppCompatActivity() {
         } else {
             "NT$ ${order.totalAmount}"
         }
-        view.findViewById<TextView>(R.id.tvDetailAmount).text = "總金額：$amountText"
+        view.findViewById<TextView>(R.id.tvDetailAmount).text = getString(R.string.format_total_amount, amountText)
 
         // 按鈕
         val pbDetailAction = view.findViewById<ProgressBar>(R.id.pbDetailAction)
@@ -250,15 +250,15 @@ class OrderListActivity : AppCompatActivity() {
 
         btnCancelOrder.setOnClickListener {
             AlertDialog.Builder(this)
-                .setTitle("取消訂單")
-                .setMessage("確定要取消此訂單嗎？")
-                .setPositiveButton("取消訂單") { _, _ ->
+                .setTitle(getString(R.string.title_cancel_order_dialog))
+                .setMessage(getString(R.string.msg_delete_order_confirm))
+                .setPositiveButton(getString(R.string.label_cancel_order)) { _, _ ->
                     pbDetailAction.visibility = View.VISIBLE
                     btnPayNow.isEnabled       = false
                     btnCancelOrder.isEnabled  = false
                     viewModel.cancelOrder(order.id)
                 }
-                .setNegativeButton("返回", null)
+                .setNegativeButton(getString(R.string.label_go_back), null)
                 .show()
         }
 

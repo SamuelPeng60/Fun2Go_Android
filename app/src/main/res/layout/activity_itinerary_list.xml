@@ -34,7 +34,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:text="尚無行程"
+                android:text="@string/empty_itineraries"
                 android:textColor="#AAAAAA"
                 android:textSize="15sp"
                 android:visibility="gone" />

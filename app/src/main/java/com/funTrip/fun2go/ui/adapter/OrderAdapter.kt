@@ -42,20 +42,21 @@ class OrderAdapter(
         private val tvAmount: TextView      = view.findViewById(R.id.tvAmount)
 
         fun bind(order: Order) {
-            tvOrderId.text = "訂單 #${order.id}"
+            tvOrderId.text = itemView.context.getString(R.string.format_order_id, order.id)
 
+            val ctx = itemView.context
             val (statusText, statusColor) = when (order.status) {
-                "pending"   -> Pair("待付款", Color.parseColor("#FF9800"))
-                "confirmed" -> Pair("已確認", Color.parseColor("#4CAF50"))
-                "completed" -> Pair("已完成", Color.parseColor("#9E9E9E"))
-                "cancelled" -> Pair("已取消", Color.parseColor("#F44336"))
+                "pending"   -> Pair(ctx.getString(R.string.status_pending),   Color.parseColor("#FF9800"))
+                "confirmed" -> Pair(ctx.getString(R.string.status_confirmed), Color.parseColor("#4CAF50"))
+                "completed" -> Pair(ctx.getString(R.string.status_completed), Color.parseColor("#9E9E9E"))
+                "cancelled" -> Pair(ctx.getString(R.string.status_cancelled), Color.parseColor("#F44336"))
                 else        -> Pair(order.status, Color.parseColor("#9E9E9E"))
             }
             tvStatus.text = statusText
             tvStatus.setTextColor(statusColor)
 
             val booking = order.charterBooking
-            tvVehicleName.text = booking?.vehicleName ?: "包車訂單"
+            tvVehicleName.text = booking?.vehicleName ?: itemView.context.getString(R.string.label_charter_order)
 
             tvPickupTime.text = booking?.pickupTime
                 ?.replace("T", " ")

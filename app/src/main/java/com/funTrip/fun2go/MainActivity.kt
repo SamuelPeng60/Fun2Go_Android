@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     viewModel.loginWithGoogle(idToken, account.photoUrl?.toString())
                 }
             } catch (e: ApiException) {
-                Toast.makeText(this, "Google 登入失敗：${e.statusCode}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.msg_google_login_failed, e.statusCode), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -116,7 +116,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (granted) {
             enableMyLocation()
         } else {
-            Toast.makeText(this, "需要位置權限才能顯示目前位置", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_location_perm), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -139,28 +139,28 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var pendingNavigationItinerary: Itinerary? = null
     private var pendingStartDate: String? = null
 
-    private val categoryMap = linkedMapOf(
-        "all"          to "全部",
-        "attraction"   to "景點",
-        "restaurant"   to "餐廳",
-        "night_market" to "夜市",
-        "shopping"     to "購物",
-        "cafe"         to "咖啡廳"
-    )
+    private lateinit var categoryMap: LinkedHashMap<String, String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        categoryMap = linkedMapOf(
+            "all"          to getString(R.string.category_all),
+            "attraction"   to getString(R.string.category_attraction),
+            "restaurant"   to getString(R.string.category_restaurant),
+            "night_market" to getString(R.string.category_night_market),
+            "shopping"     to getString(R.string.category_shopping),
+            "cafe"         to getString(R.string.category_cafe)
+        )
+
         initGoogleSignIn()
         initViews()
         setupCategoryChips()
-
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
-
         initViewModel()
+
+        // 推遲到第一幀繪製完成後再初始化 Maps SDK，避免 splash screen 卡頓
+        window.decorView.post { initMapFragment() }
 
         viewModel.fetchAllSpots()
     }
@@ -170,6 +170,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (::viewModel.isInitialized && viewModel.isLoggedIn) {
             viewModel.currentUser?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
         }
+    }
+
+    private fun initMapFragment() {
+        val mapFragment = SupportMapFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.mapContainer, mapFragment)
+            .commit()          // 非同步，不阻塞主執行緒
+        mapFragment.getMapAsync(this)   // 內部會等 fragment 附著後再回調
     }
 
     // ─── Google Sign-In 初始化 ─────────────────────────────────
@@ -209,7 +217,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun requireLogin(desc: String = "登入後即可使用此功能", action: () -> Unit) {
         when {
             !viewModel.isLoggedIn -> showLoginBottomSheet(desc)
-            !viewModel.hasValidToken -> Toast.makeText(this, "正在登入中，請稍候...", Toast.LENGTH_SHORT).show()
+            !viewModel.hasValidToken -> Toast.makeText(this, getString(R.string.msg_signing_in), Toast.LENGTH_SHORT).show()
             else -> action()
         }
     }
@@ -227,7 +235,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (viewModel.isLoggedIn) {
                 showProfileBottomSheet()
             } else {
-                showLoginBottomSheet("登入後即可查看個人資料")
+                showLoginBottomSheet(getString(R.string.msg_login_for_profile))
             }
         }
 
@@ -307,7 +315,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         googleMap.setOnMapLongClickListener { latLng ->
-            requireLogin("登入後即可新增自訂景點") {
+            requireLogin(getString(R.string.msg_login_for_spot)) {
                 showCreateSpotSheet(latLng)
             }
         }
@@ -352,9 +360,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         view.findViewById<TextView>(R.id.tvSpotName).text = spot.name
         view.findViewById<Chip>(R.id.chipCategory).text =
-            categoryMap[spot.category] ?: spot.category ?: "景點"
+            categoryMap[spot.category] ?: spot.category ?: getString(R.string.category_attraction)
         view.findViewById<TextView>(R.id.tvSpotAddress).text =
-            spot.address ?: "無地址資訊"
+            spot.address ?: getString(R.string.label_no_address)
 
         val tvRating = view.findViewById<TextView>(R.id.tvSpotRating)
         if (spot.rating != null) {
@@ -379,10 +387,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         fun syncButton() {
             if (savedSpots.any { it.id == spot.id }) {
-                btnAdd.text = "✓ 已加入行程"
+                btnAdd.text = getString(R.string.label_added_to_itin)
                 btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
             } else {
-                btnAdd.text = "＋ 加入行程"
+                btnAdd.text = getString(R.string.label_add_to_itin)
                 btnAdd.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#F44062"))
             }
         }
@@ -401,23 +409,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             // 步驟一：必須登入
             if (!viewModel.isLoggedIn) {
-                showLoginBottomSheet("請先登入 Google，才能將景點加入行程")
+                showLoginBottomSheet(getString(R.string.msg_login_for_add))
                 return@setOnClickListener
             }
             // 步驟二：必須有行程
             val itineraries = viewModel.cachedUserItineraries
             if (itineraries.isEmpty()) {
                 AlertDialog.Builder(this)
-                    .setTitle("尚無行程")
-                    .setMessage("請先建立一個行程，才能加入景點")
-                    .setPositiveButton("前往建立") { _, _ -> showCreateItinerarySheet() }
-                    .setNegativeButton("取消", null)
+                    .setTitle(getString(R.string.title_no_itinerary))
+                    .setMessage(getString(R.string.msg_no_itinerary))
+                    .setPositiveButton(getString(R.string.label_go_create)) { _, _ -> showCreateItinerarySheet() }
+                    .setNegativeButton(getString(R.string.label_cancel), null)
                     .show()
                 return@setOnClickListener
             }
             // 步驟三：選擇要加入的行程
             AlertDialog.Builder(this)
-                .setTitle("選擇行程")
+                .setTitle(getString(R.string.title_select_itin))
                 .setItems(itineraries.map { it.title }.toTypedArray()) { _, which ->
                     val selected = itineraries[which]
                     savedSpots.add(spot)
@@ -451,7 +459,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         }
                     }
                     viewModel.itineraryDetail.observe(this, dayPickerObs!!)
-                    Toast.makeText(this, "「${spot.name}」已加入「${selected.title}」", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_added, spot.name, selected.title), Toast.LENGTH_SHORT).show()
                 }
                 .show()
         }
@@ -486,7 +494,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     btnNavProfile.setImageResource(R.drawable.ic_google_logo)
                 }
             } else {
-                tvWelcome.text = "遊客"
+                tvWelcome.text = getString(R.string.label_guest)
                 btnNavProfile.setImageResource(R.drawable.ic_google_logo)
             }
         }
@@ -497,7 +505,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Loading -> showLoading(true)
                 is NetworkResult.Success -> {
                     showLoading(false)
-                    Toast.makeText(this, "歡迎，${result.data?.name}！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_welcome, result.data?.name ?: ""), Toast.LENGTH_SHORT).show()
                     result.data?.id?.takeIf { it > 0 }?.let { userId ->
                         viewModel.fetchUserItineraries(userId)
                         viewModel.fetchUserFavorites(userId)
@@ -505,7 +513,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "登入失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_login_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -517,7 +525,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> showLoading(false)
                 is NetworkResult.Error   -> {
                     showLoading(false)
-                    Toast.makeText(this, "用戶讀取失敗: ${response.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_user_load_failed, response.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -533,7 +541,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "載入景點失敗: ${response.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_load_spots_failed, response.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -571,7 +579,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Error -> {
                     showLoading(false)
                     pendingStartDate = null
-                    Toast.makeText(this, "初始化天數失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_init_days_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                     pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
                     pendingNavigationItinerary = null
                 }
@@ -593,7 +601,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // 加入景點到現有行程結果（Feature 3）
         viewModel.addSpotToItineraryResult.observe(this) { result ->
             if (result is NetworkResult.Error) {
-                Toast.makeText(this, "加入行程失敗：${result.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.msg_add_spot_failed, result.message ?: ""), Toast.LENGTH_LONG).show()
             }
         }
 
@@ -604,7 +612,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> showLoading(false)
                 is NetworkResult.Error -> {
                     showLoading(false)
-                    Toast.makeText(this, "刪除失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_delete_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -614,7 +622,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun showProfileBottomSheet() {
         val user = viewModel.currentUser ?: run {
-            Toast.makeText(this, "尚未載入使用者資料", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_user_not_loaded), Toast.LENGTH_SHORT).show()
             return
         }
         val dialog = BottomSheetDialog(this)
@@ -629,7 +637,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         etName.setText(user.name)
         etEmail.setText(user.email ?: "")
-        tvDate.text = "加入日期：${user.createdAt?.take(10) ?: "—"}"
+        tvDate.text = getString(R.string.label_join_date, user.createdAt?.take(10) ?: "—")
 
         if (!user.avatarUrl.isNullOrEmpty()) {
             ivAvatar.load(user.avatarUrl) {
@@ -644,12 +652,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Loading -> btnSave.isEnabled = false
                 is NetworkResult.Success -> {
                     btnSave.isEnabled = true
-                    Toast.makeText(this, "已儲存", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_profile_saved), Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 }
                 is NetworkResult.Error -> {
                     btnSave.isEnabled = true
-                    Toast.makeText(this, "儲存失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_profile_save_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -658,7 +666,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnSave.setOnClickListener {
             val name  = etName.text?.toString()?.trim() ?: ""
             val email = etEmail.text?.toString()?.trim()
-            if (name.isEmpty()) { etName.error = "姓名不能為空"; return@setOnClickListener }
+            if (name.isEmpty()) { etName.error = getString(R.string.msg_name_required); return@setOnClickListener }
             viewModel.updateUser(user.id, name, email)
         }
 
@@ -666,7 +674,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             viewModel.logout()
             googleSignInClient.signOut()
             dialog.dismiss()
-            Toast.makeText(this, "已登出", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_logged_out), Toast.LENGTH_SHORT).show()
         }
 
         dialog.setOnDismissListener {
@@ -706,11 +714,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         )
                     )
                 } else {
-                    Toast.makeText(this, "無法取得目前位置，請確認 GPS 已開啟", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_no_location), Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener {
-                Toast.makeText(this, "定位失敗：${it.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.msg_location_failed, it.message ?: ""), Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -758,7 +766,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Error -> {
                     btnCreate.isEnabled = true
                     pbCreating.visibility = View.GONE
-                    Toast.makeText(this, "建立失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_create_itin_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -767,7 +775,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnCreate.setOnClickListener {
             val title = etTitle.text?.toString()?.trim() ?: ""
             if (title.isEmpty()) {
-                tilTitle.error = "行程名稱不能為空"
+                tilTitle.error = getString(R.string.msg_itin_title_required)
                 return@setOnClickListener
             }
             tilTitle.error = null
@@ -795,7 +803,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_edit_spot, null)
 
-        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = "新增景點"
+        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = getString(R.string.title_create_spot)
 
         val etLat = view.findViewById<TextInputEditText>(R.id.etSpotLat)
         val etLng = view.findViewById<TextInputEditText>(R.id.etSpotLng)
@@ -839,13 +847,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         allSpots = allSpots + newSpot
                         filterAndPlaceMarkers()
                     }
-                    Toast.makeText(this, "景點已建立", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_created), Toast.LENGTH_SHORT).show()
                 }
                 is NetworkResult.Error -> if (hasStarted) {
                     hasStarted = false
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
-                    Toast.makeText(this, "建立失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_create_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -862,7 +870,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Error -> {
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
-                    Toast.makeText(this, "圖片上傳失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_image_upload_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -874,7 +882,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val mime = contentResolver.getType(uri) ?: "image/jpeg"
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 if (bytes == null) {
-                    Toast.makeText(this, "無法讀取圖片", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_image_read_failed), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 btnSave.isEnabled = false
@@ -898,7 +906,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_edit_spot, null)
 
-        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = "編輯景點"
+        view.findViewById<TextView>(R.id.tvSpotSheetTitle).text = getString(R.string.title_edit_spot)
 
         view.findViewById<TextInputEditText>(R.id.etSpotName).setText(spot.name)
         view.findViewById<TextInputEditText>(R.id.etSpotAddress).setText(spot.address ?: "")
@@ -952,13 +960,13 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                         allSpots = allSpots.map { if (it.id == updatedSpot.id) updatedSpot else it }
                         filterAndPlaceMarkers()
                     }
-                    Toast.makeText(this, "景點已更新", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_updated), Toast.LENGTH_SHORT).show()
                 }
                 is NetworkResult.Error -> if (hasStarted) {
                     hasStarted = false
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
-                    Toast.makeText(this, "更新失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_update_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -975,7 +983,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Error -> {
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
-                    Toast.makeText(this, "圖片上傳失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_image_upload_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -987,7 +995,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 val mime = contentResolver.getType(uri) ?: "image/jpeg"
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 if (bytes == null) {
-                    Toast.makeText(this, "無法讀取圖片", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_spot_image_read_failed), Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 btnSave.isEnabled = false
@@ -1009,9 +1017,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun confirmDeleteSpot(spot: Spot, parentDialog: BottomSheetDialog) {
         AlertDialog.Builder(this)
-            .setTitle("刪除景點")
-            .setMessage("確定要刪除「${spot.name}」嗎？")
-            .setPositiveButton("刪除") { _, _ ->
+            .setTitle(getString(R.string.title_delete_spot))
+            .setMessage(getString(R.string.msg_delete_spot_confirm, spot.name))
+            .setPositiveButton(getString(R.string.label_delete)) { _, _ ->
                 viewModel.deleteSpot(spot.id)
                 // 觀察結果：成功後關閉父 Sheet 並刷新地圖
                 val observer = object : Observer<NetworkResult<Unit>> {
@@ -1029,7 +1037,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                                 val uid = viewModel.currentUser?.id ?: 0
                                 if (uid > 0) viewModel.removeFavorite(spot.id, uid)
                             }
-                            Toast.makeText(this@MainActivity, "景點已刪除", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, getString(R.string.msg_spot_deleted), Toast.LENGTH_SHORT).show()
                         } else if (result is NetworkResult.Error) {
                             viewModel.deleteSpotResult.removeObserver(this)
                         }
@@ -1037,22 +1045,22 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
                 viewModel.deleteSpotResult.observe(this, observer)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.label_cancel), null)
             .show()
     }
 
     private fun showDayPickerDialog(days: List<ItineraryDay>, spot: Spot) {
         val labels = days.map { day ->
             val dateStr = if (day.date.isNullOrBlank()) "" else " · ${day.date}"
-            "第${day.day_number}天$dateStr（${day.spots?.size ?: 0} 個景點）"
+            getString(R.string.format_day_label_full, day.day_number, dateStr, day.spots?.size ?: 0)
         }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle("選擇加入哪一天")
+            .setTitle(getString(R.string.title_select_day))
             .setItems(labels) { _, i ->
                 val day = days[i]
                 viewModel.addSpotToDayById(day.id, spot.id, (day.spots?.size ?: 0) + 1)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.label_cancel), null)
             .show()
     }
 
@@ -1061,7 +1069,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val tilName = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilSpotName)
         val name = view.findViewById<TextInputEditText>(R.id.etSpotName).text?.toString()?.trim() ?: ""
         if (name.isEmpty()) {
-            tilName.error = "景點名稱不能為空"
+            tilName.error = getString(R.string.msg_spot_name_required)
             return null
         }
         tilName.error = null

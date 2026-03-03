@@ -46,14 +46,12 @@ class VehicleAdapter(
         fun bind(vehicle: Vehicle) {
             tvVehicleName.text = vehicle.name
             tvType.text = typeDisplayName(vehicle.type)
-            tvCapacity.text = "最多 ${vehicle.capacity} 人"
+            tvCapacity.text = itemView.context.getString(R.string.format_capacity, vehicle.capacity)
 
             val price = vehicle.pricePerDay.toDoubleOrNull()?.toLong()
-            tvPrice.text = if (price != null) {
-                "NT$ ${NumberFormat.getNumberInstance(Locale.US).format(price)} / 天"
-            } else {
-                "NT$ ${vehicle.pricePerDay} / 天"
-            }
+            val priceStr = if (price != null) NumberFormat.getNumberInstance(Locale.US).format(price)
+                           else vehicle.pricePerDay
+            tvPrice.text = itemView.context.getString(R.string.format_price_per_day, priceStr)
 
             if (vehicle.isAvailable) {
                 tvAvailable.visibility = View.GONE
@@ -70,9 +68,9 @@ class VehicleAdapter(
         }
 
         private fun typeDisplayName(type: String) = when (type) {
-            "sedan_4" -> "轎車"
-            "van_9"   -> "九人座"
-            "bus_20"  -> "巴士"
+            "sedan_4" -> itemView.context.getString(R.string.vehicle_type_sedan)
+            "van_9"   -> itemView.context.getString(R.string.vehicle_type_van)
+            "bus_20"  -> itemView.context.getString(R.string.vehicle_type_bus)
             else      -> type
         }
     }

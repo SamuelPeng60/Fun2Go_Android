@@ -27,4 +27,200 @@
         <item>金門縣</item>
         <item>馬祖</item>
     </string-array>
+
+    <!-- ── 通用按鈕 ─────────────────────────────────────── -->
+    <string name="label_cancel">取消</string>
+    <string name="label_save">儲存</string>
+    <string name="label_delete">刪除</string>
+    <string name="label_logout">登出</string>
+    <string name="label_pay_now">立即付款</string>
+    <string name="label_pay_later">稍後付款</string>
+    <string name="label_cancel_order">取消訂單</string>
+    <string name="label_go_create">前往建立</string>
+    <string name="label_go">前往</string>
+    <string name="label_later">稍後</string>
+    <string name="label_remove">移除</string>
+    <string name="label_save_changes">儲存變更</string>
+    <string name="label_save_profile">儲存修改</string>
+    <string name="label_google_signin">使用 Google 帳號登入</string>
+    <string name="label_confirm_booking">確認預訂</string>
+    <string name="label_create_itinerary">建立行程</string>
+    <string name="label_go_back">返回</string>
+
+    <!-- ── 主畫面 / 遊客 ──────────────────────────────────── -->
+    <string name="label_guest">遊客</string>
+    <string name="msg_location_perm">需要位置權限才能顯示目前位置</string>
+    <string name="msg_no_location">無法取得目前位置，請確認 GPS 已開啟</string>
+    <string name="msg_location_failed">定位失敗：%s</string>
+
+    <!-- ── 景點分類 ─────────────────────────────────────── -->
+    <string name="category_all">全部</string>
+    <string name="category_attraction">景點</string>
+    <string name="category_restaurant">餐廳</string>
+    <string name="category_night_market">夜市</string>
+    <string name="category_shopping">購物</string>
+    <string name="category_cafe">咖啡廳</string>
+
+    <!-- ── 登入 ──────────────────────────────────────────── -->
+    <string name="title_login">請先登入</string>
+    <string name="msg_login_desc">登入後即可使用此功能</string>
+    <string name="msg_signing_in">正在登入中，請稍候…</string>
+    <string name="msg_login_for_profile">登入後即可查看個人資料</string>
+    <string name="msg_login_for_spot">登入後即可新增自訂景點</string>
+    <string name="msg_login_for_add">請先登入 Google，才能將景點加入行程</string>
+    <string name="msg_login_for_orders">請先登入再查看訂單</string>
+    <string name="msg_login_for_booking">請先登入再預訂</string>
+    <string name="msg_login_for_copy">請先登入才能複製行程</string>
+    <string name="msg_login_for_my_itin">請先登入才能查看我的行程</string>
+    <string name="msg_welcome">歡迎，%s！</string>
+    <string name="msg_login_failed">登入失敗：%s</string>
+    <string name="msg_google_login_failed">Google 登入失敗：%d</string>
+    <string name="msg_user_load_failed">用戶讀取失敗: %s</string>
+    <string name="msg_user_not_loaded">尚未載入使用者資料</string>
+
+    <!-- ── 個人資料 ─────────────────────────────────────── -->
+    <string name="title_profile">個人資料</string>
+    <string name="label_name">姓名</string>
+    <string name="label_join_date">加入日期：%s</string>
+    <string name="msg_profile_saved">已儲存</string>
+    <string name="msg_profile_save_failed">儲存失敗：%s</string>
+    <string name="msg_logged_out">已登出</string>
+    <string name="msg_name_required">姓名不能為空</string>
+
+    <!-- ── 景點詳情 ─────────────────────────────────────── -->
+    <string name="label_spot_category">類別</string>
+    <string name="label_no_address">無地址資訊</string>
+    <string name="label_add_to_itin">＋ 加入行程</string>
+    <string name="label_added_to_itin">✓ 已加入行程</string>
+    <string name="msg_spot_added">「%1$s」已加入「%2$s」</string>
+    <string name="msg_load_spots_failed">載入景點失敗: %s</string>
+    <string name="msg_add_spot_failed">加入行程失敗：%s</string>
+
+    <!-- ── 自訂景點建立 / 編輯 ────────────────────────────── -->
+    <string name="title_create_spot">新增景點</string>
+    <string name="title_edit_spot">編輯景點</string>
+    <string name="hint_spot_name">景點名稱（必填）</string>
+    <string name="hint_spot_category">分類（可選）</string>
+    <string name="hint_spot_address">地址（可選）</string>
+    <string name="hint_spot_lat">緯度</string>
+    <string name="hint_spot_lng">經度</string>
+    <string name="label_pick_image">選擇圖片</string>
+    <string name="label_spot_public">公開景點（讓其他人也能看見）</string>
+    <string name="msg_spot_created">景點已建立</string>
+    <string name="msg_spot_updated">景點已更新</string>
+    <string name="msg_spot_deleted">景點已刪除</string>
+    <string name="msg_spot_name_required">景點名稱不能為空</string>
+    <string name="msg_spot_create_failed">建立失敗：%s</string>
+    <string name="msg_spot_update_failed">更新失敗：%s</string>
+    <string name="msg_spot_image_upload_failed">圖片上傳失敗：%s</string>
+    <string name="msg_spot_image_read_failed">無法讀取圖片</string>
+    <string name="title_delete_spot">刪除景點</string>
+    <string name="msg_delete_spot_confirm">確定要刪除「%s」嗎？</string>
+
+    <!-- ── 加入行程選擇 ─────────────────────────────────── -->
+    <string name="title_select_itin">選擇行程</string>
+    <string name="title_no_itinerary">尚無行程</string>
+    <string name="msg_no_itinerary">請先建立一個行程，才能加入景點</string>
+    <string name="title_select_day">選擇加入哪一天</string>
+
+    <!-- ── 行程列表 ─────────────────────────────────────── -->
+    <string name="title_my_itineraries">我的行程</string>
+    <string name="empty_itineraries">尚無行程</string>
+    <string name="msg_load_itin_failed">載入失敗，請重新整理</string>
+    <string name="msg_itin_load_failed2">載入失敗：%s</string>
+    <string name="title_delete_itin">刪除行程</string>
+    <string name="msg_delete_itin_confirm">確定要刪除「%s」？此操作無法復原。</string>
+    <string name="msg_itin_title_required">行程名稱不能為空</string>
+    <string name="msg_create_itin_failed">建立失敗：%s</string>
+    <string name="msg_update_itin_failed">更新失敗：%s</string>
+    <string name="msg_delete_failed">刪除失敗：%s</string>
+    <string name="msg_init_days_failed">初始化天數失敗：%s</string>
+
+    <!-- ── 行程建立 / 編輯 ──────────────────────────────── -->
+    <string name="title_create_itin">新增行程</string>
+    <string name="title_edit_itin">編輯行程</string>
+    <string name="hint_itin_title">行程名稱（必填）</string>
+    <string name="hint_destination">目的地（可選）</string>
+    <string name="hint_total_days">天數（可選，如：3）</string>
+    <string name="hint_start_date">起始日期（可選）</string>
+
+    <!-- ── 行程詳情 ─────────────────────────────────────── -->
+    <string name="default_itin_title">行程詳情</string>
+    <string name="empty_days">目前尚無行程天數</string>
+    <string name="msg_load_detail_failed">載入失敗：%s</string>
+    <string name="msg_spot_not_yours">此行程不屬於您，無法修改景點</string>
+    <string name="msg_update_date_failed">更新日期失敗：%s</string>
+    <string name="msg_reorder_failed">排序同步失敗：%s</string>
+    <string name="title_remove_spot">移除景點</string>
+    <string name="msg_remove_spot_confirm">確定要從此天移除「%s」？</string>
+    <string name="msg_operation_failed">操作失敗</string>
+    <string name="day_label">第%d天</string>
+    <string name="msg_tap_to_set_date">點擊設定日期</string>
+    <string name="format_spots_count">%d 個景點</string>
+    <string name="format_day_label_full">第%1$d天%2$s（%3$d 個景點）</string>
+
+    <!-- ── 探索行程 ─────────────────────────────────────── -->
+    <string name="title_explore">探索行程</string>
+    <string name="empty_public_itin">目前沒有公開行程</string>
+    <string name="msg_itinerary_copied">行程已複製！</string>
+    <string name="title_copy_success">複製成功</string>
+    <string name="msg_copy_success_detail">行程已複製到你的帳號，是否前往我的行程？</string>
+    <string name="msg_copy_failed">複製失敗：%s</string>
+    <string name="msg_load_public_failed">載入失敗，請重試</string>
+
+    <!-- ── 租車 ──────────────────────────────────────────── -->
+    <string name="title_vehicle_list">租車</string>
+    <string name="empty_vehicles">暫無可用車輛</string>
+    <string name="label_unavailable">暫不可用</string>
+    <string name="vehicle_type_sedan">轎車</string>
+    <string name="vehicle_type_van">九人座</string>
+    <string name="vehicle_type_bus">巴士</string>
+    <string name="msg_vehicle_unavailable">此車輛目前暫不可用</string>
+    <string name="msg_booking_failed">預訂失敗：%s</string>
+    <string name="msg_order_created_detail">金額：%s\n立即付款？</string>
+    <string name="format_capacity">最多 %d 人</string>
+    <string name="format_price_per_day">NT$ %s / 天</string>
+
+    <!-- ── 預訂 ──────────────────────────────────────────── -->
+    <string name="title_booking">預訂車輛</string>
+    <string name="hint_pickup_location">上車地點 *</string>
+    <string name="hint_dropoff_location">下車地點（選填）</string>
+    <string name="hint_pickup_time">上車日期時間 *</string>
+    <string name="hint_booking_days">天數 *</string>
+    <string name="hint_passenger_count">乘客人數 *</string>
+    <string name="hint_contact_name">聯絡人姓名 *</string>
+    <string name="hint_contact_phone">聯絡電話 *</string>
+    <string name="hint_special_requests">特殊需求（選填）</string>
+    <string name="title_order_created">訂單已建立！</string>
+    <string name="title_pay_now_dialog">立即付款？</string>
+    <string name="msg_booking_no_pickup">請填寫上車地點</string>
+    <string name="msg_booking_no_time">請選擇上車日期時間</string>
+    <string name="msg_booking_invalid_days">請填寫正確天數</string>
+    <string name="msg_booking_no_pax">請填寫乘客人數</string>
+    <string name="msg_booking_no_contact_name">請填寫聯絡人姓名</string>
+    <string name="msg_booking_no_contact_phone">請填寫聯絡電話</string>
+    <string name="format_amount_preview">預估金額：NT$ %s</string>
+    <string name="format_total_amount">總金額：%s</string>
+
+    <!-- ── 訂單 ──────────────────────────────────────────── -->
+    <string name="title_orders">我的訂單</string>
+    <string name="empty_orders">暫無訂單記錄</string>
+    <string name="title_order_detail">訂單詳情</string>
+    <string name="label_vehicle_info">車輛資訊</string>
+    <string name="label_booking_detail">預訂明細</string>
+    <string name="label_contact_info">聯絡資訊</string>
+    <string name="status_all">全部</string>
+    <string name="status_pending">待付款</string>
+    <string name="status_confirmed">已確認</string>
+    <string name="status_completed">已完成</string>
+    <string name="status_cancelled">已取消</string>
+    <string name="msg_order_cancelled">訂單已取消</string>
+    <string name="msg_cancel_failed">取消失敗：%s</string>
+    <string name="msg_payment_success">付款成功，訂單已確認！</string>
+    <string name="msg_payment_failed">付款失敗：%s</string>
+    <string name="msg_load_orders_failed">載入失敗：%s</string>
+    <string name="title_cancel_order_dialog">取消訂單</string>
+    <string name="msg_delete_order_confirm">確定要取消此訂單嗎？</string>
+    <string name="format_order_id">訂單 #%d</string>
+    <string name="label_charter_order">包車訂單</string>
 </resources>

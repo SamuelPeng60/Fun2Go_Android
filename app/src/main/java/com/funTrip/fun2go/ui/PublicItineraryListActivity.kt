@@ -44,7 +44,7 @@ class PublicItineraryListActivity : AppCompatActivity() {
         toolbar.setOnMenuItemClickListener { item ->
             if (item.itemId == R.id.menuMyItineraries) {
                 if (viewModel.currentUser == null) {
-                    Toast.makeText(this, "請先登入才能查看我的行程", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_login_for_my_itin), Toast.LENGTH_SHORT).show()
                 } else {
                     startActivity(Intent(this, ItineraryListActivity::class.java))
                 }
@@ -63,7 +63,7 @@ class PublicItineraryListActivity : AppCompatActivity() {
             },
             onCopyClick = { itinerary ->
                 if (viewModel.currentUser == null) {
-                    Toast.makeText(this, "請先登入才能複製行程", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_login_for_copy), Toast.LENGTH_SHORT).show()
                 } else {
                     viewModel.copyItinerary(itinerary.id)
                 }
@@ -111,7 +111,7 @@ class PublicItineraryListActivity : AppCompatActivity() {
                 }
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
-                    tvEmpty.text = "載入失敗，請重試"
+                    tvEmpty.text = getString(R.string.msg_load_public_failed)
                     tvEmpty.visibility = View.VISIBLE
                 }
             }
@@ -128,21 +128,21 @@ class PublicItineraryListActivity : AppCompatActivity() {
                     if (copyHandled) return@observe
                     copyHandled = true
                     pbLoading.visibility = View.GONE
-                    Toast.makeText(this, "行程已複製！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_itinerary_copied), Toast.LENGTH_SHORT).show()
                     AlertDialog.Builder(this)
-                        .setTitle("複製成功")
-                        .setMessage("行程已複製到你的帳號，是否前往我的行程？")
-                        .setPositiveButton("前往") { _, _ ->
+                        .setTitle(getString(R.string.title_copy_success))
+                        .setMessage(getString(R.string.msg_copy_success_detail))
+                        .setPositiveButton(getString(R.string.label_go)) { _, _ ->
                             startActivity(Intent(this, ItineraryListActivity::class.java))
                         }
-                        .setNegativeButton("稍後", null)
+                        .setNegativeButton(getString(R.string.label_later), null)
                         .show()
                 }
                 is NetworkResult.Error -> {
                     if (copyHandled) return@observe
                     copyHandled = true
                     pbLoading.visibility = View.GONE
-                    Toast.makeText(this, "複製失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_copy_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }

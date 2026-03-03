@@ -26,7 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="24dp"
-            android:text="新增景點"
+            android:text="@string/title_create_spot"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#222222" />
@@ -60,7 +60,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginBottom="12dp"
-            android:text="選擇圖片"
+            android:text="@string/label_pick_image"
             android:textColor="#F44062"
             app:cornerRadius="24dp"
             app:icon="@drawable/ic_photo"
@@ -75,7 +75,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
-            android:hint="景點名稱（必填）">
+            android:hint="@string/hint_spot_name">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etSpotName"
@@ -95,7 +95,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="12dp"
-            android:hint="分類（可選）">
+            android:hint="@string/hint_spot_category">
 
             <AutoCompleteTextView
                 android:id="@+id/actvSpotCategory"
@@ -115,7 +115,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="12dp"
-            android:hint="地址（可選）">
+            android:hint="@string/hint_spot_address">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etSpotAddress"
@@ -135,7 +135,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="12dp"
-            android:hint="緯度">
+            android:hint="@string/hint_spot_lat">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etSpotLat"
@@ -155,7 +155,7 @@
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginTop="12dp"
-            android:hint="經度">
+            android:hint="@string/hint_spot_lng">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etSpotLng"
@@ -180,7 +180,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="公開景點（讓其他人也能看見）"
+                android:text="@string/label_spot_public"
                 android:textSize="14sp"
                 android:textColor="#444444" />
 
@@ -210,7 +210,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
                 android:layout_marginEnd="12dp"
-                android:text="取消"
+                android:text="@string/label_cancel"
                 android:textColor="#F44062"
                 app:cornerRadius="24dp"
                 app:strokeColor="#F44062" />
@@ -219,7 +219,7 @@
                 android:id="@+id/btnSaveSpot"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
-                android:text="儲存"
+                android:text="@string/label_save"
                 android:textSize="15sp"
                 app:backgroundTint="#F44062"
                 app:cornerRadius="24dp" />

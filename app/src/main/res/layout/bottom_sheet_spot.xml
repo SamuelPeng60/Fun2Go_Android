@@ -32,7 +32,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="編輯景點"
+            android:contentDescription="@string/title_edit_spot"
             android:src="@drawable/ic_edit"
             android:tint="#555555" />
 
@@ -41,7 +41,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="刪除景點"
+            android:contentDescription="@string/title_delete_spot"
             android:src="@drawable/ic_delete"
             android:tint="#F44062" />
 
@@ -109,7 +109,7 @@
         android:layout_marginStart="20dp"
         android:layout_marginEnd="20dp"
         android:layout_marginTop="20dp"
-        android:text="＋ 加入列表"
+        android:text="@string/label_add_to_itin"
         android:textColor="@android:color/white"
         app:backgroundTint="#F44062"
         app:cornerRadius="24dp" />

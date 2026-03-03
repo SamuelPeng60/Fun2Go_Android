@@ -22,7 +22,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="訂單詳情"
+                android:text="@string/title_order_detail"
                 android:textColor="#222222"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -55,7 +55,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="車輛資訊"
+            android:text="@string/label_vehicle_info"
             android:textColor="#555555"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -88,7 +88,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="預訂明細"
+            android:text="@string/label_booking_detail"
             android:textColor="#555555"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -137,7 +137,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="聯絡資訊"
+            android:text="@string/label_contact_info"
             android:textColor="#555555"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -180,7 +180,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:backgroundTint="#F44062"
-            android:text="立即付款"
+            android:text="@string/label_pay_now"
             android:textColor="@android:color/white"
             android:visibility="gone" />
 
@@ -191,7 +191,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:layout_marginTop="4dp"
-            android:text="取消訂單"
+            android:text="@string/label_cancel_order"
             android:visibility="gone" />
 
     </LinearLayout>

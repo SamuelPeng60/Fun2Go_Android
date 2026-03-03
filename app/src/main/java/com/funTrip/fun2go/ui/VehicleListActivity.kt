@@ -54,7 +54,7 @@ class VehicleListActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
-            title = "租車"
+            title = getString(R.string.title_vehicle_list)
         }
 
         // 訂單 icon
@@ -63,7 +63,7 @@ class VehicleListActivity : AppCompatActivity() {
             if (item.itemId == R.id.action_my_orders) {
                 val user = TokenManager.getInstance(this).getSavedUser()
                 if (user == null) {
-                    Toast.makeText(this, "請先登入再查看訂單", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_login_for_orders), Toast.LENGTH_SHORT).show()
                 } else {
                     startActivity(Intent(this, OrderListActivity::class.java))
                 }
@@ -106,7 +106,7 @@ class VehicleListActivity : AppCompatActivity() {
                 }
                 is NetworkResult.Error -> {
                     pbLoading.visibility  = View.GONE
-                    tvEmpty.text          = "載入失敗：${result.message}"
+                    tvEmpty.text          = getString(R.string.msg_itin_load_failed2, result.message ?: "")
                     tvEmpty.visibility    = View.VISIBLE
                     rvVehicles.visibility = View.GONE
                 }
@@ -127,11 +127,11 @@ class VehicleListActivity : AppCompatActivity() {
     private fun onVehicleClick(vehicle: Vehicle) {
         val user = TokenManager.getInstance(this).getSavedUser()
         if (user == null) {
-            Toast.makeText(this, "請先登入再預訂", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_login_for_booking), Toast.LENGTH_SHORT).show()
             return
         }
         if (!vehicle.isAvailable) {
-            Toast.makeText(this, "此車輛目前暫不可用", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.msg_vehicle_unavailable), Toast.LENGTH_SHORT).show()
             return
         }
         showBookingSheet(vehicle)
@@ -156,17 +156,17 @@ class VehicleListActivity : AppCompatActivity() {
                     }
 
                     AlertDialog.Builder(this)
-                        .setTitle("訂單已建立！")
-                        .setMessage("金額：$amountText\n立即付款？")
-                        .setPositiveButton("立即付款") { _, _ -> orderViewModel.payOrder(order.id) }
-                        .setNegativeButton("稍後付款") { _, _ ->
+                        .setTitle(getString(R.string.title_order_created))
+                        .setMessage(getString(R.string.msg_order_created_detail, amountText))
+                        .setPositiveButton(getString(R.string.label_pay_now)) { _, _ -> orderViewModel.payOrder(order.id) }
+                        .setNegativeButton(getString(R.string.label_pay_later)) { _, _ ->
                             startActivity(Intent(this, OrderListActivity::class.java))
                         }
                         .setCancelable(false)
                         .show()
                 }
                 is NetworkResult.Error -> {
-                    Toast.makeText(this, "預訂失敗：${result.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.msg_booking_failed, result.message ?: ""), Toast.LENGTH_LONG).show()
                     // 讓 sheet 內的按鈕恢復（sheet 可能已關閉，但若還開著就恢復）
                 }
             }
@@ -176,11 +176,11 @@ class VehicleListActivity : AppCompatActivity() {
             when (result) {
                 is NetworkResult.Loading -> { }
                 is NetworkResult.Success -> {
-                    Toast.makeText(this, "付款成功，訂單已確認！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.msg_payment_success), Toast.LENGTH_SHORT).show()
                     startActivity(Intent(this, OrderListActivity::class.java))
                 }
                 is NetworkResult.Error -> {
-                    Toast.makeText(this, "付款失敗：${result.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.msg_payment_failed, result.message ?: ""), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -200,9 +200,9 @@ class VehicleListActivity : AppCompatActivity() {
         // 車輛資訊
         view.findViewById<TextView>(R.id.tvVehicleHeader).text = vehicle.name
         val typeName = when (vehicle.type) {
-            "sedan_4" -> "轎車"
-            "van_9"   -> "九人座"
-            "bus_20"  -> "巴士"
+            "sedan_4" -> getString(R.string.vehicle_type_sedan)
+            "van_9"   -> getString(R.string.vehicle_type_van)
+            "bus_20"  -> getString(R.string.vehicle_type_bus)
             else      -> vehicle.type
         }
         val price = vehicle.pricePerDay.toDoubleOrNull()?.toLong()
@@ -212,7 +212,7 @@ class VehicleListActivity : AppCompatActivity() {
             "NT$ ${vehicle.pricePerDay}"
         }
         view.findViewById<TextView>(R.id.tvVehicleSub).text =
-            "$typeName · 最多${vehicle.capacity}人 · $priceText/天"
+            "$typeName · ${getString(R.string.format_capacity, vehicle.capacity)} · ${getString(R.string.format_price_per_day, priceText)}"
 
         val etPickupLocation  = view.findViewById<TextInputEditText>(R.id.etPickupLocation)
         val etDropoffLocation = view.findViewById<TextInputEditText>(R.id.etDropoffLocation)
@@ -236,7 +236,7 @@ class VehicleListActivity : AppCompatActivity() {
                 if (price != null && days > 0) {
                     val total = price * days
                     tvAmountPreview.text =
-                        "預估金額：NT$ ${NumberFormat.getNumberInstance(Locale.US).format(total)}"
+                        getString(R.string.format_amount_preview, NumberFormat.getNumberInstance(Locale.US).format(total))
                 } else {
                     tvAmountPreview.text = ""
                 }
@@ -281,12 +281,12 @@ class VehicleListActivity : AppCompatActivity() {
             val phone    = etContactPhone.text?.toString()?.trim() ?: ""
 
             when {
-                pickup.isEmpty()    -> { Toast.makeText(this, "請填寫上車地點", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                pickupTime.isEmpty() -> { Toast.makeText(this, "請選擇上車日期時間", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                days <= 0           -> { Toast.makeText(this, "請填寫正確天數", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                pax <= 0            -> { Toast.makeText(this, "請填寫乘客人數", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                name.isEmpty()      -> { Toast.makeText(this, "請填寫聯絡人姓名", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                phone.isEmpty()     -> { Toast.makeText(this, "請填寫聯絡電話", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                pickup.isEmpty()    -> { Toast.makeText(this, getString(R.string.msg_booking_no_pickup), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                pickupTime.isEmpty() -> { Toast.makeText(this, getString(R.string.msg_booking_no_time), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                days <= 0           -> { Toast.makeText(this, getString(R.string.msg_booking_invalid_days), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                pax <= 0            -> { Toast.makeText(this, getString(R.string.msg_booking_no_pax), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                name.isEmpty()      -> { Toast.makeText(this, getString(R.string.msg_booking_no_contact_name), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                phone.isEmpty()     -> { Toast.makeText(this, getString(R.string.msg_booking_no_contact_phone), Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             }
 
             pbBooking.visibility = View.VISIBLE
@@ -318,10 +318,10 @@ class VehicleListActivity : AppCompatActivity() {
 
         data class FilterChip(val label: String, val type: String?)
         val filters = listOf(
-            FilterChip("全部",    null),
-            FilterChip("轎車",    "sedan_4"),
-            FilterChip("九人座",  "van_9"),
-            FilterChip("巴士",   "bus_20")
+            FilterChip(getString(R.string.category_all),         null),
+            FilterChip(getString(R.string.vehicle_type_sedan),   "sedan_4"),
+            FilterChip(getString(R.string.vehicle_type_van),     "van_9"),
+            FilterChip(getString(R.string.vehicle_type_bus),     "bus_20")
         )
 
         filters.forEach { filter ->

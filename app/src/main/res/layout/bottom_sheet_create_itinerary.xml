@@ -21,7 +21,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="24dp"
-        android:text="新增行程"
+        android:text="@string/title_create_itin"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#222222" />
@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
-        android:hint="行程名稱（必填）">
+        android:hint="@string/hint_itin_title">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etItineraryTitle"
@@ -54,7 +54,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="12dp"
-        android:hint="目的地（可選）">
+        android:hint="@string/hint_destination">
 
         <AutoCompleteTextView
             android:id="@+id/actvDestination"
@@ -74,7 +74,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="12dp"
-        android:hint="天數（可選，如：3）">
+        android:hint="@string/hint_total_days">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etTotalDays"
@@ -94,7 +94,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginTop="12dp"
-        android:hint="起始日期（可選）">
+        android:hint="@string/hint_start_date">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etStartDate"
@@ -123,7 +123,7 @@
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:layout_marginEnd="12dp"
-            android:text="取消"
+            android:text="@string/label_cancel"
             android:textColor="#F44062"
             app:cornerRadius="24dp"
             app:strokeColor="#F44062" />
@@ -132,7 +132,7 @@
             android:id="@+id/btnCreateItinerary"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:text="建立行程"
+            android:text="@string/label_create_itinerary"
             android:textSize="15sp"
             app:backgroundTint="#F44062"
             app:cornerRadius="24dp" />

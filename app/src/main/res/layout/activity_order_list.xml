@@ -15,7 +15,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/white"
             android:elevation="4dp"
-            app:title="我的訂單" />
+            app:title="@string/title_orders" />
 
         <HorizontalScrollView
             android:layout_width="match_parent"
@@ -53,7 +53,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:text="暫無訂單記錄"
+                android:text="@string/empty_orders"
                 android:textColor="#AAAAAA"
                 android:textSize="15sp"
                 android:visibility="gone" />

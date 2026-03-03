@@ -29,7 +29,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:text="目前尚無行程天數"
+                android:text="@string/empty_days"
                 android:textColor="#AAAAAA"
                 android:textSize="15sp"
                 android:visibility="gone" />

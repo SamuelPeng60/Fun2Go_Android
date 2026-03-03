@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="請先登入"
+        android:text="@string/title_login"
         android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="#222222" />
@@ -33,7 +33,7 @@
         android:layout_marginBottom="36dp"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:text="登入後即可使用此功能"
+        android:text="@string/msg_login_desc"
         android:textSize="14sp"
         android:textColor="#777777"
         android:gravity="center" />
@@ -45,7 +45,7 @@
         android:layout_height="52dp"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
-        android:text="使用 Google 帳號登入"
+        android:text="@string/label_google_signin"
         android:textSize="15sp"
         android:textColor="#333333"
         app:backgroundTint="#FFFFFF"

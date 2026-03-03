@@ -160,16 +160,16 @@ class ItineraryDayAdapter(
 
         fun bind(item: Item.Header) {
             val day = item.day
-            tvDayNumber.text = "第${day.day_number}天"
+            tvDayNumber.text = itemView.context.getString(R.string.day_label, day.day_number)
             if (day.date.isNullOrBlank()) {
-                tvDayDate.text = "點擊設定日期"
+                tvDayDate.text = itemView.context.getString(R.string.msg_tap_to_set_date)
                 tvDayDate.setTextColor(android.graphics.Color.parseColor("#F44062"))
             } else {
                 tvDayDate.text = day.date
                 tvDayDate.setTextColor(android.graphics.Color.parseColor("#333333"))
             }
             val count = day.spots?.size ?: 0
-            tvSpotCount.text = "$count 個景點"
+            tvSpotCount.text = itemView.context.getString(R.string.format_spots_count, count)
             ivChevron.rotation = if (item.isExpanded) 90f else 0f
 
             tvDayDate.setOnClickListener { onDateClick(day) }

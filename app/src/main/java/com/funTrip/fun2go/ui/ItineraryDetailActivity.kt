@@ -42,7 +42,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
         setContentView(R.layout.activity_itinerary_detail)
 
         itineraryId = intent.getIntExtra("itinerary_id", -1)
-        val itineraryTitle = intent.getStringExtra("itinerary_title") ?: "行程詳情"
+        val itineraryTitle = intent.getStringExtra("itinerary_title") ?: getString(R.string.default_itin_title)
 
         toolbar = findViewById(R.id.toolbar)
         pbLoading = findViewById(R.id.pbLoading)
@@ -111,7 +111,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     tvEmptyDays.visibility = View.GONE
                     rvDays.visibility = View.GONE
-                    Snackbar.make(toolbar, "載入失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(toolbar, getString(R.string.msg_load_detail_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -123,7 +123,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
                     val msg = if (result.message?.contains("Forbidden", ignoreCase = true) == true)
-                        "此行程不屬於您，無法修改景點" else result.message ?: "操作失敗"
+                        getString(R.string.msg_spot_not_yours) else result.message ?: getString(R.string.msg_operation_failed)
                     Snackbar.make(toolbar, msg, Snackbar.LENGTH_LONG).show()
                 }
             }
@@ -131,7 +131,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         viewModel.updateDayResult.observe(this) { result ->
             if (result is NetworkResult.Error) {
-                Snackbar.make(toolbar, "更新日期失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(toolbar, getString(R.string.msg_update_date_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
             }
         }
 
@@ -141,7 +141,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
         viewModel.reorderResult.observe(this) { result ->
             if (result is NetworkResult.Error)
-                Snackbar.make(toolbar, "排序同步失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(toolbar, getString(R.string.msg_reorder_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
         }
     }
 
@@ -196,14 +196,14 @@ class ItineraryDetailActivity : AppCompatActivity() {
     }
 
     private fun showRemoveSpotDialog(itSpot: ItinerarySpot, dayId: Int) {
-        val spotName = itSpot.spot_detail?.name ?: "此景點"
+        val spotName = itSpot.spot_detail?.name ?: ""
         AlertDialog.Builder(this)
-            .setTitle("移除景點")
-            .setMessage("確定要從此天移除「$spotName」？")
-            .setPositiveButton("移除") { _, _ ->
+            .setTitle(getString(R.string.title_remove_spot))
+            .setMessage(getString(R.string.msg_remove_spot_confirm, spotName))
+            .setPositiveButton(getString(R.string.label_remove)) { _, _ ->
                 viewModel.removeSpotFromDay(itineraryId, dayId, itSpot.id)
             }
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.label_cancel), null)
             .show()
     }
 

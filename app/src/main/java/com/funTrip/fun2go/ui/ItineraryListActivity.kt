@@ -57,7 +57,7 @@ class ItineraryListActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
-            title = "我的行程"
+            title = getString(R.string.title_my_itineraries)
         }
 
         adapter = ItineraryAdapter(
@@ -72,12 +72,12 @@ class ItineraryListActivity : AppCompatActivity() {
             },
             onDeleteClick = { itinerary ->
                 AlertDialog.Builder(this)
-                    .setTitle("刪除行程")
-                    .setMessage("確定要刪除「${itinerary.title}」？此操作無法復原。")
-                    .setPositiveButton("刪除") { _, _ ->
+                    .setTitle(getString(R.string.title_delete_itin))
+                    .setMessage(getString(R.string.msg_delete_itin_confirm, itinerary.title))
+                    .setPositiveButton(getString(R.string.label_delete)) { _, _ ->
                         viewModel.deleteItinerary(itinerary.id)
                     }
-                    .setNegativeButton("取消", null)
+                    .setNegativeButton(getString(R.string.label_cancel), null)
                     .show()
             }
         )
@@ -125,7 +125,7 @@ class ItineraryListActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val list = result.data ?: emptyList()
                     if (list.isEmpty()) {
-                        tvEmpty.text = "尚無行程"
+                        tvEmpty.text = getString(R.string.empty_itineraries)
                         tvEmpty.visibility = View.VISIBLE
                         rvItineraries.visibility = View.GONE
                     } else {
@@ -137,9 +137,9 @@ class ItineraryListActivity : AppCompatActivity() {
                 is NetworkResult.Error -> {
                     Log.d("ILA_DEBUG", "userItineraries Error: ${result.message}")
                     pbLoading.visibility = View.GONE
-                    tvEmpty.text = "載入失敗，請重新整理"
+                    tvEmpty.text = getString(R.string.msg_load_itin_failed)
                     tvEmpty.visibility = View.VISIBLE
-                    Snackbar.make(toolbar, "載入失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(toolbar, getString(R.string.msg_itin_load_failed2, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -155,7 +155,7 @@ class ItineraryListActivity : AppCompatActivity() {
                 }
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
-                    Snackbar.make(toolbar, "刪除失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(toolbar, getString(R.string.msg_delete_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -244,7 +244,7 @@ class ItineraryListActivity : AppCompatActivity() {
                     if (!hasStarted) return@Observer  // 忽略 stale cached 值
                     btnCreate.isEnabled = true
                     pbCreating.visibility = View.GONE
-                    Snackbar.make(view, "建立失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(view, getString(R.string.msg_create_itin_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -253,7 +253,7 @@ class ItineraryListActivity : AppCompatActivity() {
         btnCreate.setOnClickListener {
             val title = etTitle.text?.toString()?.trim() ?: ""
             if (title.isEmpty()) {
-                tilTitle.error = "行程名稱不能為空"
+                tilTitle.error = getString(R.string.msg_itin_title_required)
                 return@setOnClickListener
             }
             tilTitle.error = null
@@ -318,7 +318,7 @@ class ItineraryListActivity : AppCompatActivity() {
                     if (!hasStarted) return@Observer  // 忽略 stale cached 值
                     btnUpdate.isEnabled = true
                     pbUpdating.visibility = View.GONE
-                    Snackbar.make(view, "更新失敗：${result.message}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(view, getString(R.string.msg_update_itin_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }
@@ -327,7 +327,7 @@ class ItineraryListActivity : AppCompatActivity() {
         btnUpdate.setOnClickListener {
             val title = etTitle.text?.toString()?.trim() ?: ""
             if (title.isEmpty()) {
-                tilTitle.error = "行程名稱不能為空"
+                tilTitle.error = getString(R.string.msg_itin_title_required)
                 return@setOnClickListener
             }
             tilTitle.error = null
