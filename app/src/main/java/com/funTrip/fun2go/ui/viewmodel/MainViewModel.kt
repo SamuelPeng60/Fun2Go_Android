@@ -192,6 +192,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _unfavoriteResponse = MutableLiveData<NetworkResult<Unit>>()
     val unfavoriteResponse: LiveData<NetworkResult<Unit>> = _unfavoriteResponse
 
+    // ─── 圖片上傳 ──────────────────────────────────────────────
+    private val _uploadImageResult = MutableLiveData<NetworkResult<UploadResponse>>()
+    val uploadImageResult: LiveData<NetworkResult<UploadResponse>> = _uploadImageResult
+
     // ========== Functions ==========
 
     fun fetchUser(userId: Int) {
@@ -427,6 +431,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _unfavoriteResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
             _unfavoriteResponse.value = repository.removeFavorite(spotId, userId)
+        }
+    }
+
+    fun uploadImage(folder: String, bytes: ByteArray, mimeType: String) {
+        _uploadImageResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _uploadImageResult.value = repository.uploadImage(folder, bytes, mimeType)
         }
     }
 }

@@ -3,6 +3,9 @@ package com.funTrip.fun2go.data.repository
 import com.funTrip.fun2go.data.model.*
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.remote.RetrofitClient
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class TripRepository : BaseRepository() {
 
@@ -184,4 +187,16 @@ class TripRepository : BaseRepository() {
     suspend fun cancelOrder(id: Int) = safeApiCall { api.cancelOrder(id) }
 
     suspend fun payOrder(id: Int) = safeApiCall { api.payOrder(id) }
+
+    // --- Upload ---
+
+    suspend fun uploadImage(folder: String, bytes: ByteArray, mimeType: String): NetworkResult<UploadResponse> {
+        return safeApiCall {
+            val requestFile = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+            val ext = if (mimeType.contains("jpeg")) "jpg" else mimeType.substringAfterLast("/")
+            val filePart = MultipartBody.Part.createFormData("file", "upload.$ext", requestFile)
+            val folderPart = folder.toRequestBody("text/plain".toMediaTypeOrNull())
+            api.uploadImage(filePart, folderPart)
+        }
+    }
 }

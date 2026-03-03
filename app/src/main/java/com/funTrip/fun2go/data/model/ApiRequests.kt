@@ -59,3 +59,6 @@ data class CreateOrderRequest(
     val itinerary_id: Int? = null,
     val charter: CharterRequest
 )
+
+// 圖片上傳回應
+data class UploadResponse(val url: String)

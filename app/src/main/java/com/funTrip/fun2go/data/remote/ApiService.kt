@@ -1,6 +1,8 @@
 package com.funTrip.fun2go.data.remote
 
 import com.funTrip.fun2go.data.model.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -135,4 +137,12 @@ interface ApiService {
     // 注意: Retrofit 的 DELETE 預設不支援 Body，需使用 HTTP annotation 自定義
     @HTTP(method = "DELETE", path = "api/favorites/{spotId}", hasBody = true)
     suspend fun removeFavorite(@Path("spotId") spotId: Int, @Body request: UnfavoriteRequest): Response<Unit>
+
+    // --- 上傳 (Upload) ---
+    @Multipart
+    @POST("api/upload")
+    suspend fun uploadImage(
+        @Part file: MultipartBody.Part,
+        @Part("folder") folder: RequestBody
+    ): Response<UploadResponse>
 }

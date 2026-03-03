@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
@@ -32,6 +33,7 @@ import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.Spot
 import com.funTrip.fun2go.data.model.SpotRequest
+import com.funTrip.fun2go.data.model.UploadResponse
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
@@ -94,6 +96,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
     }
+
+    // ─── 圖片選擇器 ────────────────────────────────────────────
+    private var onImagePickedCallback: ((Uri) -> Unit)? = null
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> uri?.let { onImagePickedCallback?.invoke(it) } }
 
     // ─── 定位 ──────────────────────────────────────────────────
     private val fusedLocationClient by lazy {
@@ -771,9 +779,23 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setupSpotCategoryDropdown(view)
 
-        val btnSave   = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
-        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
-        val pb        = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+        val btnSave     = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
+        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
+        val btnPickImg  = view.findViewById<MaterialButton>(R.id.btnPickImage)
+        val ivPreview   = view.findViewById<ImageView>(R.id.ivSpotImagePreview)
+        val cardPreview = view.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardImagePreview)
+        val pb          = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+
+        var pendingUri: Uri? = null
+
+        btnPickImg.setOnClickListener {
+            onImagePickedCallback = { uri ->
+                pendingUri = uri
+                cardPreview.visibility = View.VISIBLE
+                ivPreview.load(uri)
+            }
+            imagePickerLauncher.launch("image/*")
+        }
 
         var hasStarted = false
         val observer = Observer<NetworkResult<Spot>> { result ->
@@ -788,8 +810,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
                     dialog.dismiss()
-                    // 直接用 POST response 的 spot（含正確 ID）加入 allSpots
-                    // 避免呼叫 fetchAllSpots()，因為 GET /api/spots 可能回傳 id=null 導致 id=0
                     result.data?.let { newSpot ->
                         allSpots = allSpots + newSpot
                         filterAndPlaceMarkers()
@@ -806,12 +826,45 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         viewModel.createSpotResponse.observe(this, observer)
 
+        val uploadObserver = Observer<NetworkResult<UploadResponse>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> { /* pb already visible */ }
+                is NetworkResult.Success -> {
+                    val url = result.data?.url
+                    pendingUri = null
+                    buildSpotRequest(view, url)?.let { viewModel.createSpot(it) }
+                }
+                is NetworkResult.Error -> {
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    Toast.makeText(this, "圖片上傳失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.uploadImageResult.observe(this, uploadObserver)
+
         btnSave.setOnClickListener {
-            val req = buildSpotRequest(view) ?: return@setOnClickListener
-            viewModel.createSpot(req)
+            val uri = pendingUri
+            if (uri != null) {
+                val mime = contentResolver.getType(uri) ?: "image/jpeg"
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    Toast.makeText(this, "無法讀取圖片", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                btnSave.isEnabled = false
+                pb.visibility = View.VISIBLE
+                viewModel.uploadImage("spots", bytes, mime)
+            } else {
+                val req = buildSpotRequest(view) ?: return@setOnClickListener
+                viewModel.createSpot(req)
+            }
         }
         btnCancel.setOnClickListener { dialog.dismiss() }
-        dialog.setOnDismissListener { viewModel.createSpotResponse.removeObserver(observer) }
+        dialog.setOnDismissListener {
+            viewModel.createSpotResponse.removeObserver(observer)
+            viewModel.uploadImageResult.removeObserver(uploadObserver)
+        }
         dialog.setContentView(view)
         dialog.show()
     }
@@ -830,12 +883,32 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         val actvCategory = view.findViewById<AutoCompleteTextView>(R.id.actvSpotCategory)
         setupSpotCategoryDropdown(view)
-        // 預填分類顯示名稱
         actvCategory.setText(categoryMap[spot.category] ?: spot.category ?: "", false)
 
-        val btnSave   = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
-        val btnCancel = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
-        val pb        = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+        // 若景點已有圖片，預覽現有圖片
+        val ivPreview   = view.findViewById<ImageView>(R.id.ivSpotImagePreview)
+        val cardPreview = view.findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardImagePreview)
+        val currentImageUrl: String? = spot.image_url
+        if (!currentImageUrl.isNullOrEmpty()) {
+            cardPreview.visibility = View.VISIBLE
+            ivPreview.load(currentImageUrl)
+        }
+
+        val btnSave    = view.findViewById<MaterialButton>(R.id.btnSaveSpot)
+        val btnCancel  = view.findViewById<MaterialButton>(R.id.btnCancelSpot)
+        val btnPickImg = view.findViewById<MaterialButton>(R.id.btnPickImage)
+        val pb         = view.findViewById<android.widget.ProgressBar>(R.id.pbSavingSpot)
+
+        var pendingUri: Uri? = null
+
+        btnPickImg.setOnClickListener {
+            onImagePickedCallback = { uri ->
+                pendingUri = uri
+                cardPreview.visibility = View.VISIBLE
+                ivPreview.load(uri)
+            }
+            imagePickerLauncher.launch("image/*")
+        }
 
         var hasStarted = false
         val observer = Observer<NetworkResult<Spot>> { result ->
@@ -850,7 +923,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     btnSave.isEnabled = true
                     pb.visibility = View.GONE
                     dialog.dismiss()
-                    // 直接用 PUT response 的 spot 更新 allSpots（保留正確 ID）
                     result.data?.let { updatedSpot ->
                         allSpots = allSpots.map { if (it.id == updatedSpot.id) updatedSpot else it }
                         filterAndPlaceMarkers()
@@ -867,12 +939,45 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
         viewModel.updateSpotResult.observe(this, observer)
 
+        val uploadObserver = Observer<NetworkResult<UploadResponse>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> { /* pb already visible */ }
+                is NetworkResult.Success -> {
+                    val url = result.data?.url
+                    pendingUri = null
+                    buildSpotRequest(view, url)?.let { viewModel.updateSpot(spot.id, it) }
+                }
+                is NetworkResult.Error -> {
+                    btnSave.isEnabled = true
+                    pb.visibility = View.GONE
+                    Toast.makeText(this, "圖片上傳失敗：${result.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.uploadImageResult.observe(this, uploadObserver)
+
         btnSave.setOnClickListener {
-            val req = buildSpotRequest(view) ?: return@setOnClickListener
-            viewModel.updateSpot(spot.id, req)
+            val uri = pendingUri
+            if (uri != null) {
+                val mime = contentResolver.getType(uri) ?: "image/jpeg"
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    Toast.makeText(this, "無法讀取圖片", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                btnSave.isEnabled = false
+                pb.visibility = View.VISIBLE
+                viewModel.uploadImage("spots", bytes, mime)
+            } else {
+                val req = buildSpotRequest(view, currentImageUrl) ?: return@setOnClickListener
+                viewModel.updateSpot(spot.id, req)
+            }
         }
         btnCancel.setOnClickListener { dialog.dismiss() }
-        dialog.setOnDismissListener { viewModel.updateSpotResult.removeObserver(observer) }
+        dialog.setOnDismissListener {
+            viewModel.updateSpotResult.removeObserver(observer)
+            viewModel.uploadImageResult.removeObserver(uploadObserver)
+        }
         dialog.setContentView(view)
         dialog.show()
     }
@@ -912,7 +1017,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     /** 從 bottom_sheet_create_edit_spot View 中讀取並驗證欄位，回傳 SpotRequest 或 null */
-    private fun buildSpotRequest(view: android.view.View): SpotRequest? {
+    private fun buildSpotRequest(view: android.view.View, imageUrl: String? = null): SpotRequest? {
         val tilName = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.tilSpotName)
         val name = view.findViewById<TextInputEditText>(R.id.etSpotName).text?.toString()?.trim() ?: ""
         if (name.isEmpty()) {
@@ -937,6 +1042,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             latitude = lat,
             longitude = lng,
             address = address,
+            image_url = imageUrl,
             is_public = isPublic
         )
     }
