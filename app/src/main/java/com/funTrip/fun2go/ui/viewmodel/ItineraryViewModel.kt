@@ -170,6 +170,31 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch { _copyResult.value = repository.copyItinerary(id) }
     }
 
+    /** 複製行程後，依 startDate 更新各天日期（天數已由後端複製好，只需 PATCH date） */
+    fun setDatesAfterCopy(itineraryId: Int, startDate: String) {
+        _initDaysResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val detail = repository.getItineraryDetail(itineraryId)
+            if (detail is NetworkResult.Error) {
+                _initDaysResult.value = NetworkResult.Error(detail.message ?: "")
+                return@launch
+            }
+            val days = (detail as NetworkResult.Success).data?.days ?: emptyList()
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val startCal = runCatching {
+                java.util.Calendar.getInstance().also { it.time = sdf.parse(startDate)!! }
+            }.getOrNull()
+            if (startCal != null) {
+                for (day in days.sortedBy { it.day_number }) {
+                    val cal = java.util.Calendar.getInstance().also { it.time = startCal.time }
+                    cal.add(java.util.Calendar.DAY_OF_MONTH, day.day_number - 1)
+                    repository.updateDay(itineraryId, day.id, mapOf("date" to sdf.format(cal.time)))
+                }
+            }
+            _initDaysResult.value = NetworkResult.Success(Unit)
+        }
+    }
+
     // ─── User Itinerary List (used by ItineraryListActivity) ──────────────
     private val _userItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItineraries: LiveData<NetworkResult<List<Itinerary>>> = _userItineraries
