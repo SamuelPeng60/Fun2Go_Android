@@ -132,7 +132,7 @@
     <string name="format_day_label_full">Day %1$d%2$s (%3$d spots)</string>
 
     <!-- ── 探索行程 ─────────────────────────────────────── -->
-    <string name="title_explore">Explore</string>
+    <string name="title_explore">My Itineraries</string>
     <string name="label_public_itineraries">Public Itineraries</string>
     <string name="empty_public_itin">No public itineraries</string>
     <string name="msg_itinerary_copied">Itinerary Copied!</string>

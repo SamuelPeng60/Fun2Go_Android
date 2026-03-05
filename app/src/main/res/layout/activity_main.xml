@@ -159,7 +159,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_compass"
                 android:tint="#AAAAAA"
-                android:contentDescription="Explore" />
+                android:contentDescription="@string/title_my_itineraries" />
 
             <ImageButton
                 android:id="@+id/btnNavCharter"
