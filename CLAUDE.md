@@ -288,6 +288,24 @@ sealed class SavedListItem {
 
 ---
 
+### 17. 英文版本（Android i18n）+ 修復 Maps 冷啟動 ANR（v2.3，2026-03-03）
+- **新增 `res/values-en/strings.xml`**：~140 個 key，系統語言設英文時自動切換，不需手動選擇
+- **更新 `res/values/strings.xml`**：補齊所有新 key（含 `msg_add_spot_failed`、`msg_signing_in`、`msg_booking_failed`、`msg_order_created_detail`、`format_total_amount` 等）
+- **12 個 layout XML**：所有 hardcoded 中文文字改為 `@string/` 參照
+- **6 個 Activity**：`MainActivity`、`ItineraryListActivity`、`ItineraryDetailActivity`、`VehicleListActivity`、`OrderListActivity`、`PublicItineraryListActivity` 全部改用 `getString(R.string.xxx)`
+- **3 個 Adapter**：`ItineraryDayAdapter`、`OrderAdapter`、`VehicleAdapter` 改用 `itemView.context.getString()`
+- **`categoryMap` 架構調整**：從 property 初始化改為 `private lateinit var`，在 `onCreate()` 中呼叫 `getString()` 初始化（因 getString 需要 Context）
+- **String key 命名規則**：`label_`（按鈕）、`title_`（頁面/對話框）、`hint_`（輸入框）、`msg_`（Toast/Snackbar/Dialog）、`nav_`（導覽）、`empty_`（空狀態）、`category_`（景點分類）、`status_`（訂單狀態）、`format_`（含格式化變數）
+- **注意**：`ItineraryDayAdapter.calcDistance()` 中的距離單位（`公尺`/`公里`）在 companion object 無 Context，**刻意保留中文**（不在 i18n 範圍）
+- **修復 Maps 冷啟動 ANR**：
+  - 根本原因：`SupportMapFragment` 寫在 XML layout 中，`setContentView()` 時 Maps SDK 同步初始化阻塞主線程 1-5 秒，造成 ANR
+  - `activity_main.xml`：將 `<fragment>` 改為 `<FrameLayout android:id="@+id/mapContainer">`（純容器）
+  - `MainActivity.kt`：`onCreate()` 中改用 `window.decorView.post { initMapFragment() }` 延後至第一幀繪製後執行
+  - `initMapFragment()`：用 `SupportMapFragment.newInstance()` + `commit()`（非同步，不阻塞主線程）取代原本的 `commitNow()`
+  - `App.kt`：加入 `MapsInitializer.initialize(this)` 在 Application 啟動時預熱 Maps SDK
+
+---
+
 ## 已知待完成功能
 - 底部導航「聊天」頁面
 

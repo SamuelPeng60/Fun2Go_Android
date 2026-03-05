@@ -40,7 +40,10 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
 import com.funTrip.fun2go.ui.ItineraryListActivity
 import com.funTrip.fun2go.ui.PublicItineraryListActivity
+import com.funTrip.fun2go.ui.adapter.PublicItineraryPanelAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
+import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -69,6 +72,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private var loginDialog: BottomSheetDialog? = null
     private var createItineraryDialog: BottomSheetDialog? = null
     private var createItineraryHandled = false
+
+    // ─── 公開行程 Panel ────────────────────────────────────────
+    private lateinit var itinViewModel: ItineraryViewModel
+    private var copyHandled = false
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -158,6 +165,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         initViews()
         setupCategoryChips()
         initViewModel()
+        setupPublicItinPanel()
 
         // 推遲到第一幀繪製完成後再初始化 Maps SDK，避免 splash screen 卡頓
         window.decorView.post { initMapFragment() }
@@ -169,6 +177,76 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onResume()
         if (::viewModel.isInitialized && viewModel.isLoggedIn) {
             viewModel.currentUser?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
+        }
+        if (::itinViewModel.isInitialized) {
+            itinViewModel.fetchPublicItineraries()
+        }
+    }
+
+    // ─── 公開行程 Panel + 建立行程 FAB ─────────────────────────
+
+    private fun setupPublicItinPanel() {
+        itinViewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
+
+        val panelAdapter = PublicItineraryPanelAdapter(
+            onItemClick = { itin ->
+                startActivity(Intent(this, ItineraryDetailActivity::class.java).apply {
+                    putExtra("itinerary_id", itin.id)
+                    putExtra("itinerary_title", itin.title)
+                })
+            },
+            onCopyClick = { itin ->
+                if (!viewModel.isLoggedIn) {
+                    showLoginBottomSheet(getString(R.string.msg_login_for_copy))
+                } else {
+                    copyHandled = false
+                    itinViewModel.copyItinerary(itin.id)
+                }
+            }
+        )
+
+        findViewById<RecyclerView>(R.id.rvPublicItinPanel).apply {
+            layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = panelAdapter
+        }
+
+        // 建立行程 FAB
+        findViewById<FloatingActionButton>(R.id.fabCreateItinerary).setOnClickListener {
+            requireLogin(getString(R.string.msg_login_for_my_itin)) {
+                showCreateItinerarySheet()
+            }
+        }
+
+        // 觀察公開行程
+        itinViewModel.publicItineraries.observe(this) { result ->
+            if (result is NetworkResult.Success) {
+                panelAdapter.submitList(result.data ?: emptyList())
+            }
+        }
+
+        // 觀察複製結果
+        itinViewModel.copyResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> copyHandled = false
+                is NetworkResult.Success -> {
+                    if (copyHandled) return@observe
+                    copyHandled = true
+                    Toast.makeText(this, getString(R.string.msg_itinerary_copied), Toast.LENGTH_SHORT).show()
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_copy_success))
+                        .setMessage(getString(R.string.msg_copy_success_detail))
+                        .setPositiveButton(getString(R.string.label_go)) { _, _ ->
+                            startActivity(Intent(this, ItineraryListActivity::class.java))
+                        }
+                        .setNegativeButton(getString(R.string.label_later), null)
+                        .show()
+                }
+                is NetworkResult.Error -> {
+                    if (copyHandled) return@observe
+                    copyHandled = true
+                    Toast.makeText(this, getString(R.string.msg_copy_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -261,7 +339,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         }
 
         findViewById<ImageButton>(R.id.btnNavExplore).setOnClickListener {
-            startActivity(Intent(this, PublicItineraryListActivity::class.java))
+            requireLogin(getString(R.string.msg_login_for_my_itin)) {
+                startActivity(Intent(this, ItineraryListActivity::class.java))
+            }
         }
 
         findViewById<ImageButton>(R.id.btnNavCharter).setOnClickListener {

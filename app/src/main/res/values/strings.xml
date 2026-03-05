@@ -30,6 +30,7 @@
 
     <!-- ── 通用按鈕 ─────────────────────────────────────── -->
     <string name="label_cancel">取消</string>
+    <string name="label_copy_itinerary">複製</string>
     <string name="label_save">儲存</string>
     <string name="label_delete">刪除</string>
     <string name="label_logout">登出</string>
@@ -161,6 +162,7 @@
 
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">探索行程</string>
+    <string name="label_public_itineraries">公開行程</string>
     <string name="empty_public_itin">目前沒有公開行程</string>
     <string name="msg_itinerary_copied">行程已複製！</string>
     <string name="title_copy_success">複製成功</string>

@@ -1,6 +1,7 @@
 <resources>
     <!-- ── 通用按鈕 ─────────────────────────────────────── -->
     <string name="label_cancel">Cancel</string>
+    <string name="label_copy_itinerary">Copy</string>
     <string name="label_save">Save</string>
     <string name="label_delete">Delete</string>
     <string name="label_logout">Logout</string>
@@ -132,6 +133,7 @@
 
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">Explore</string>
+    <string name="label_public_itineraries">Public Itineraries</string>
     <string name="empty_public_itin">No public itineraries</string>
     <string name="msg_itinerary_copied">Itinerary Copied!</string>
     <string name="title_copy_success">Copy Successful</string>

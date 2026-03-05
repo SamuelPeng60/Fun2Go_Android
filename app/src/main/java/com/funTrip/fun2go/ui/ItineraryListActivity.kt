@@ -123,7 +123,12 @@ class ItineraryListActivity : AppCompatActivity() {
                 }
                 is NetworkResult.Success -> {
                     pbLoading.visibility = View.GONE
-                    val list = result.data ?: emptyList()
+                    val currentId = viewModel.currentUser?.id ?: 0
+                    // 只顯示自己的行程（author_id == currentId）
+                    // author_id == 0 表示 API 未回傳 user_id，保留（避免誤過濾）
+                    val list = (result.data ?: emptyList()).filter { itin ->
+                        currentId == 0 || itin.author_id == 0 || itin.author_id == currentId
+                    }
                     if (list.isEmpty()) {
                         tvEmpty.text = getString(R.string.empty_itineraries)
                         tvEmpty.visibility = View.VISIBLE

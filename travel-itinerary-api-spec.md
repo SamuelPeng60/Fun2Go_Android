@@ -7,6 +7,7 @@
 - [資料表結構](#資料表結構)
 - [認證機制](#認證機制)
 - [API 端點](#api-端點)
+- [圖片上傳](#圖片上傳-upload)
 - [錯誤處理](#錯誤處理)
 - [Seed 資料](#seed-資料)
 - [測試](#測試)
@@ -34,7 +35,8 @@
 - **包車預訂**：車輛瀏覽 + 建立包車訂單 + 訂單管理（v1.4）
 - **金流系統**：Mock 付款/退款，可擴充至真實支付閘道（v1.4）
 - **景點擁有權**：creator_id 區分官方/使用者景點，is_public 控制可見性，PUT/DELETE 僅限建立者（v1.6）
-- **多語系 (i18n)**：內容欄位支援 zh-TW / en / ja 三種語言，透過 JSONB 儲存、`?lang=` 或 `Accept-Language` 切換語言（v1.7）
+- **多語系 (i18n)**：內容欄位支援 zh-TW / en / ja / vi 四種語言，透過 JSONB 儲存、`?lang=` 或 `Accept-Language` 切換語言（v1.7）
+- **圖片上傳**：行動端上傳圖片至 S3，支援 sharp 壓縮 + WebP 轉換（v1.9）
 
 ---
 
@@ -61,6 +63,10 @@ GOOGLE_CLIENT_ID=<your-google-client-id>.apps.googleusercontent.com
 JWT_SECRET=<random-64-char-hex>
 JWT_EXPIRES_IN=1h
 REFRESH_TOKEN_EXPIRES_DAYS=30
+
+# S3 圖片上傳（v1.9 新增）
+S3_BUCKET=<your-s3-bucket>
+S3_REGION=us-east-1
 ```
 
 ### 相依套件（v1.3 新增）
@@ -68,6 +74,9 @@ REFRESH_TOKEN_EXPIRES_DAYS=30
 - `helmet` - HTTP 安全標頭
 - `express-rate-limit` - API 請求頻率限制
 - `morgan` - HTTP 請求日誌
+- `multer` - multipart/form-data 解析（圖片上傳，v1.9 新增）
+- `sharp` - 圖片縮放 + WebP 轉換（v1.9 新增）
+- `@aws-sdk/client-s3` - AWS S3 上傳（v1.9 新增）
 
 ### 啟動指令
 
@@ -103,9 +112,12 @@ fun2Go/
 │   ├── favoritesController.js
 │   ├── vehiclesController.js   # 車輛 CRUD（v1.4 新增）
 │   ├── ordersController.js     # 訂單 CRUD + 取消（v1.4 新增）
-│   └── paymentsController.js   # Mock 付款/退款（v1.4 新增）
+│   ├── paymentsController.js   # Mock 付款/退款（v1.4 新增）
+│   └── uploadController.js    # 圖片上傳 handler（v1.9 新增）
 ├── utils/
-│   └── i18n.js                # i18n 工具函式：localize, localizeRow, toI18nValue, mergeI18nValue（v1.7 新增）
+│   ├── i18n.js                # i18n 工具函式：localize, localizeRow, toI18nValue, mergeI18nValue（v1.7 新增）
+│   ├── uploadConfig.js        # 上傳常數：folder、大小限制、MIME type、寬度（v1.9 新增）
+│   └── s3.js                  # S3 client + uploadToS3（v1.9 新增）
 ├── routes/                    # API 路由
 │   ├── auth.js                # /api/auth/*（v1.2 新增）
 │   ├── users.js
@@ -114,7 +126,8 @@ fun2Go/
 │   ├── itinerarySpots.js
 │   ├── favorites.js
 │   ├── vehicles.js             # /api/vehicles/*（v1.4 新增）
-│   └── orders.js               # /api/orders/* + 付款路由（v1.4 新增）
+│   ├── orders.js               # /api/orders/* + 付款路由（v1.4 新增）
+│   └── upload.js               # /api/upload（v1.9 新增）
 ├── middleware/
 │   ├── auth.js                # JWT 驗證 middleware（v1.2 新增）
 │   ├── optionalAuth.js        # Optional JWT — 有 token 解析，無 token 不擋（v1.6 新增）
@@ -125,7 +138,8 @@ fun2Go/
 │   ├── 002_add_google_auth.sql # Google Auth（users.google_id + refresh_tokens）（v1.2 新增）
 │   ├── 003_add_charter_and_payments.sql # 包車 & 金流（vehicles, orders, charter_bookings, payments）（v1.4 新增）
 │   ├── 004_add_spot_creator.sql  # 景點 creator_id + is_public（v1.6 新增）
-│   └── 005_add_i18n.sql         # 多語系：10 個 TEXT 欄位轉 JSONB（v1.7 新增）
+│   ├── 005_add_i18n.sql         # 多語系：10 個 TEXT 欄位轉 JSONB（v1.7 新增）
+│   └── 006_add_vietnamese.sql   # 越南文：spots.name->>'vi' 索引（v1.8 新增）
 ├── seeds/
 │   └── seed.sql               # 測試用種子資料（台灣真實景點）
 ├── tests/                     # Jest 測試套件
@@ -139,7 +153,8 @@ fun2Go/
 │   ├── vehicles.test.js        # 車輛 CRUD 測試（v1.4 新增）
 │   ├── orders.test.js          # 訂單 CRUD + 取消測試（v1.4 新增）
 │   ├── payments.test.js        # 付款/退款測試（v1.4 新增）
-│   └── i18n.test.js           # 多語系測試：locale middleware、CRUD、搜尋、巢狀（v1.7 新增）
+│   ├── i18n.test.js           # 多語系測試：locale middleware、CRUD、搜尋、巢狀（v1.7 新增）
+│   └── upload.test.js         # 圖片上傳測試：auth、驗證、S3 URL（v1.9 新增）
 └── docs/
     └── travel-itinerary-api-spec.md
 ```
@@ -555,6 +570,7 @@ accessToken 過期時：
 | 公開 | `GET /api/vehicles/:id` | 不需要 Token（v1.4） |
 | **需認證** | `POST/PUT/DELETE /api/vehicles` | 需要 Bearer Token（v1.4） |
 | **需認證+Owner** | 所有 `/api/orders/*` | 需要 Bearer Token，**僅限訂單擁有者**（v1.4） |
+| **需認證** | `POST /api/upload` | 需要 Bearer Token（v1.9） |
 
 > **注意**：`google_id` 欄位為內部欄位，所有 `/api/users` 回應均不包含此欄位。
 >
@@ -624,6 +640,61 @@ accessToken 過期時：
 | GET | `/api/users/:id/itineraries` | 取得用戶的行程列表 | ❌ | ✅ |
 | GET | `/api/users/:id/favorites` | 取得用戶收藏的景點 | ❌ | ✅ |
 
+**POST /api/users（開發/測試用）**
+
+```json
+// Request
+{
+  "name": "王小明",
+  "email": "ming@example.com",
+  "avatar_url": "https://example.com/avatar.jpg"
+}
+
+// Response 201
+{
+  "id": 1,
+  "name": "王小明",
+  "email": "ming@example.com",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "created_at": "..."
+}
+```
+
+**GET /api/users/:id**
+
+```json
+// Response 200
+{
+  "id": 1,
+  "name": "王小明",
+  "email": "ming@example.com",
+  "avatar_url": "https://example.com/avatar.jpg",
+  "created_at": "..."
+}
+```
+
+**PUT /api/users/:id（僅限本人，支援部分更新）**
+
+```json
+// Request — 僅需傳送要更新的欄位
+// Authorization: Bearer <token>
+{
+  "name": "新名字",
+  "avatar_url": "https://cdn.example.com/new-avatar.webp"
+}
+
+// Response 200
+{
+  "id": 1,
+  "name": "新名字",
+  "email": "ming@example.com",
+  "avatar_url": "https://cdn.example.com/new-avatar.webp",
+  "created_at": "..."
+}
+```
+
+> **可更新欄位**：`name`、`email`、`avatar_url`（皆為選填，未傳的欄位保持不變）
+
 ### 行程 (Itineraries)
 
 | Method | Endpoint | 說明 | Auth | 狀態 |
@@ -641,15 +712,23 @@ accessToken 過期時：
 ```
 # 預設格式（向下相容）：回傳 array
 GET /api/itineraries?limit=20&offset=0
-→ [{ id: 1, title: "..." }, ...]
+→ [{
+    id: 1, title: "...", cover_image_url: "https://...",
+    author_name: "王小明", author_avatar: "https://..."
+  }, ...]
 
 # v2 格式：回傳含分頁資訊的 object
 GET /api/itineraries?limit=20&offset=0&format=v2
 → {
-    "data": [{ id: 1, title: "..." }, ...],
+    "data": [{
+      id: 1, title: "...", cover_image_url: "https://...",
+      author_name: "王小明", author_avatar: "https://..."
+    }, ...],
     "pagination": { "total": 50, "limit": 20, "offset": 0 }
   }
 ```
+
+> **列表欄位說明**：每筆行程額外包含 `author_name`（作者名稱）、`author_avatar`（作者頭像 URL）、`cover_image_url`（行程封面圖 URL），皆可能為 `null`。
 
 **POST /api/itineraries（v1.5 變更，v1.7 i18n）**
 
@@ -661,14 +740,16 @@ GET /api/itineraries?limit=20&offset=0&format=v2
 {
   "title": "台北三日遊",
   "total_days": 3,
-  "destination": "台北"
+  "destination": "台北",
+  "cover_image_url": "https://cdn.example.com/images/taipei.webp"
 }
 
 // 寫法 B：多語系 JSONB 物件（一次寫入多個語言）
 {
   "title": {"zh-TW": "台北三日遊", "en": "3-Day Taipei Trip", "ja": "台北3日間の旅"},
   "total_days": 3,
-  "destination": {"zh-TW": "台北", "en": "Taipei", "ja": "台北"}
+  "destination": {"zh-TW": "台北", "en": "Taipei", "ja": "台北"},
+  "cover_image_url": "https://cdn.example.com/images/taipei.webp"
 }
 
 // Response 201（回傳純文字，依請求語言解析）
@@ -676,6 +757,7 @@ GET /api/itineraries?limit=20&offset=0&format=v2
   "id": 1,
   "user_id": 1,
   "title": "台北三日遊",
+  "cover_image_url": "https://cdn.example.com/images/taipei.webp",
   "total_days": 3,
   "destination": "台北",
   "is_public": false,
@@ -685,6 +767,33 @@ GET /api/itineraries?limit=20&offset=0&format=v2
 ```
 
 > **安全性**：即使 body 中帶了 `user_id`，server 也會忽略，一律使用 JWT Token 中的 `req.user.id`。
+
+**PUT /api/itineraries/:id（支援部分更新，僅限擁有者）**
+
+```json
+// Request — 僅需傳送要更新的欄位
+// Authorization: Bearer <token>
+{
+  "title": "台北四日遊",
+  "cover_image_url": "https://cdn.example.com/images/new-cover.webp",
+  "total_days": 4
+}
+
+// Response 200
+{
+  "id": 1,
+  "user_id": 1,
+  "title": "台北四日遊",
+  "cover_image_url": "https://cdn.example.com/images/new-cover.webp",
+  "total_days": 4,
+  "destination": "台北",
+  "is_public": false,
+  "copy_count": 0,
+  "created_at": "..."
+}
+```
+
+> **可更新欄位**：`title`、`cover_image_url`、`destination`、`total_days`、`is_public`（皆為選填，未傳的欄位保持不變）。`title` 和 `destination` 支援 i18n merge（傳入的語言覆寫，其他語言保留）。
 
 **POST /api/itineraries/:id/copy（v1.3 變更）**
 
@@ -911,6 +1020,65 @@ GET /api/itineraries?limit=20&offset=0&format=v2
 }
 ```
 
+### 圖片上傳 (Upload)（v1.9 新增）
+
+| Method | Endpoint | 說明 | Auth | 狀態 |
+|--------|----------|------|:----:|:----:|
+| POST | `/api/upload` | 上傳圖片至 S3 | ✅ | ✅ |
+
+**Request**：`multipart/form-data`
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|:----:|------|
+| `file` | File | ✅ | 圖片檔案（JPEG/PNG/WebP/GIF，≤ 5 MB） |
+| `folder` | String | ✅ | 上傳目錄：`spots`、`vehicles`、`itineraries` |
+
+```bash
+# 範例
+curl -X POST http://localhost:5487/api/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@photo.jpg" \
+  -F "folder=spots"
+```
+
+```json
+// Response 201
+{
+  "url": "https://bucket-kk61j7.s3.us-east-1.amazonaws.com/images/spots/1709366400000-a1b2c3d4.webp"
+}
+```
+
+**處理流程**：
+1. JWT 認證
+2. 驗證 file 存在、folder 有效、MIME type 允許、檔案大小 ≤ 5 MB
+3. sharp 處理：resize（spots/vehicles: 1200px, itineraries: 1600px）→ WebP quality 80 → `withoutEnlargement: true`
+4. 上傳至 S3（`images/{folder}/{timestamp}-{random}.webp`，`public-read`）
+5. 回傳公開 URL
+
+**錯誤回應**：
+
+```json
+// 401 — 未帶 Token
+{ "error": "Unauthorized" }
+
+// 400 — 缺少檔案
+{ "error": "No file uploaded" }
+
+// 400 — 缺少 folder
+{ "error": "folder is required" }
+
+// 400 — 無效 folder
+{ "error": "Invalid folder. Must be one of: spots, vehicles, itineraries" }
+
+// 400 — 無效檔案類型
+{ "error": "Invalid file type. Accepted: image/jpeg, image/png, image/webp, image/gif" }
+
+// 400 — 檔案過大
+{ "error": "File too large. Maximum size is 5 MB" }
+```
+
+> **行動端使用流程**：先呼叫 `POST /api/upload` 上傳圖片取得 URL，再將 URL 帶入 `POST /api/spots`（`image_url` 欄位）或其他建立/更新 API。
+
 ---
 
 ## 錯誤處理
@@ -923,7 +1091,7 @@ GET /api/itineraries?limit=20&offset=0&format=v2
 
 | HTTP 狀態碼 | 說明 | 範例場景 |
 |:-----------:|------|----------|
-| 400 | 缺少必填欄位 / 輸入驗證失敗 | 缺少 name、title、id_token；lat/lng/radius 超出範圍（v1.3）；FK 違反；型別驗證失敗（非整數/非正數）；無效 JSON body；無效 input 格式（PG 22P02）；CHECK 約束違反（PG 23514） |
+| 400 | 缺少必填欄位 / 輸入驗證失敗 | 缺少 name、title、id_token；lat/lng/radius 超出範圍（v1.3）；FK 違反；型別驗證失敗（非整數/非正數）；無效 JSON body；無效 input 格式（PG 22P02）；CHECK 約束違反（PG 23514）；檔案過大/無效檔案類型/缺少上傳欄位（multer，v1.9） |
 | 401 | 未授權 | 未帶 Token、Token 無效或過期 |
 | 403 | 禁止操作（v1.3） | 修改/刪除他人行程、更新他人用戶資料 |
 | 404 | 資源不存在 | 查詢不存在的用戶、行程、景點；嘗試操作非自己的行程也回 404（避免洩漏資源存在） |
@@ -953,9 +1121,9 @@ psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f seeds/seed.sql
 | 景點間交通 | 5 | 步行、大眾運輸，含距離公里數 |
 | 用戶收藏 | 8 | 各用戶收藏的景點 |
 | 複製記錄 | 1 | 小美複製小明的台北三日遊 |
-| 車輛 | 3 | 豪華九人座、舒適轎車、中型巴士（v1.4，v1.7 改為三語 JSONB） |
+| 車輛 | 3 | 豪華九人座、舒適轎車、中型巴士（v1.4，v1.7 改為多語 JSONB） |
 
-> **v1.7**：所有 Seed 資料的 i18n 欄位（景點名稱/地址、行程標題/目的地、天數/景點備註、車輛名稱/描述）已改為 JSONB 格式，包含 zh-TW / en / ja 三種語言翻譯。
+> **v1.7**：所有 Seed 資料的 i18n 欄位（景點名稱/地址、行程標題/目的地、天數/景點備註、車輛名稱/描述）已改為 JSONB 格式，包含 zh-TW / en / ja / vi 四種語言翻譯。
 
 ---
 
@@ -971,7 +1139,7 @@ psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -f seeds/seed.sql
 npm test
 ```
 
-### 測試覆蓋（10 套件 / 171 測試）
+### 測試覆蓋（11 套件 / 190 測試）
 
 | 測試套件 | 測試數 | 覆蓋範圍 |
 |----------|:------:|----------|
@@ -985,6 +1153,7 @@ npm test
 | orders.test.js | 19 | 建立/列表/詳情/更新/取消、金額計算、行程關聯、容量驗證（含更新時）、分頁、**所有權驗證 (403)**、狀態限制、**型別驗證**（v1.4） |
 | payments.test.js | 11 | Mock 付款/退款、狀態轉換驗證、付款紀錄列表、**所有權驗證 (403)**、重複付款防止（v1.4） |
 | i18n.test.js | 22 | locale middleware（預設/query/header/fallback）、工具函式（localize/toI18nValue/mergeI18nValue）、**CRUD 多語系**（純字串寫入+JSONB 寫入+不同語言讀取+fallback）、**搜尋**（各語系關鍵字）、**巢狀 localize**（itinerary getById）、**車輛/訂單 i18n**（v1.7 新增） |
+| upload.test.js | 14 | 401 未授權、400 驗證（缺 file/缺 folder/無效 folder/無效 MIME/檔案過大）、201 上傳成功、folder 正確傳遞至 S3（spots/vehicles/itineraries）、sharp resize 寬度驗證（spots 1200/itineraries 1600）、500 sharp 處理失敗、500 S3 上傳失敗（v1.9 新增） |
 
 > 所有測試已更新為包含 JWT Token（v1.3），確保 Protected 路由在測試中也通過認證。
 
@@ -1177,13 +1346,13 @@ ORDER BY isp.order_index;
 
 19. **`GET /api/spots/:id` 不檢查可見性（v1.6 設計決策）**：景點詳情頁（detail page）需要能透過 ID 顯示任何景點（包含被加入他人行程中的私人景點），因此 `getById` 不做 visibility 過濾。私人景點的保護在於搜尋端（`GET /api/spots`）不會出現在他人結果中，而非隱藏已知 ID 的存取
 
-20. **多語系 JSONB 儲存格式（v1.7）**：i18n 欄位在 DB 中以 `{"zh-TW": "值", "en": "value", "ja": "値"}` 格式儲存。API 回傳時自動解析為請求語言的純文字字串。寫入時接受純字串（自動包成 `{locale: value}`）或 JSONB 物件（直接存入）。更新時使用 JSONB `||` 合併（僅更新當前語言，保留其他語系翻譯）
+20. **多語系 JSONB 儲存格式（v1.7）**：i18n 欄位在 DB 中以 `{"zh-TW": "值", "en": "value", "ja": "値", "vi": "giá trị"}` 格式儲存。API 回傳時自動解析為請求語言的純文字字串。寫入時接受純字串（自動包成 `{locale: value}`）或 JSONB 物件（直接存入）。更新時使用 JSONB `||` 合併（僅更新當前語言，保留其他語系翻譯）
 
-21. **語言偵測優先順序（v1.7）**：`?lang=en` query param → `Accept-Language: ja` header → 預設 `zh-TW`。支援的語系：`zh-TW`、`en`、`ja`。Accept-Language 解析：`en-US` → `en`、`zh` → `zh-TW`、`ja-JP` → `ja`
+21. **語言偵測優先順序（v1.7）**：`?lang=en` query param → `Accept-Language: ja` header → 預設 `zh-TW`。支援的語系：`zh-TW`、`en`、`ja`、`vi`。Accept-Language 解析：`en-US` → `en`、`zh` → `zh-TW`、`ja-JP` → `ja`、`vi-VN` → `vi`
 
 22. **i18n Fallback 機制（v1.7）**：讀取時若請求語言無翻譯，依序 fallback：requested locale → `zh-TW` → 第一個可用語言 → `null`。確保即使只有部分翻譯，仍能回傳內容
 
-23. **JSONB 搜尋（v1.7）**：`GET /api/spots?keyword=` 同時搜尋所有語系（`name->>'zh-TW' ILIKE $N OR name->>'en' ILIKE $N OR name->>'ja' ILIKE $N`），關鍵字不需指定語言即可搜到任一語系的結果
+23. **JSONB 搜尋（v1.7）**：`GET /api/spots?keyword=` 同時搜尋所有語系（`name->>'zh-TW' ILIKE $N OR name->>'en' ILIKE $N OR name->>'ja' ILIKE $N OR name->>'vi' ILIKE $N`），關鍵字不需指定語言即可搜到任一語系的結果
 
 24. **向後相容（v1.7）**：現有客戶端不需任何修改。API 預設語言為 zh-TW，回傳格式維持純文字字串。寫入端仍接受純字串。Migration 005 自動將現有 TEXT 資料包裝為 `{"zh-TW": "原始值"}`
 
@@ -1195,7 +1364,7 @@ ORDER BY isp.order_index;
 
 ### 概覽
 
-v1.7 起，內容欄位（景點名稱、行程標題、車輛描述等）支援 **zh-TW / en / ja** 三種語言。DB 層使用 JSONB 格式儲存，API 層自動解析為請求語言的純文字。
+v1.7 起，內容欄位（景點名稱、行程標題、車輛描述等）支援 **zh-TW / en / ja / vi** 四種語言。DB 層使用 JSONB 格式儲存，API 層自動解析為請求語言的純文字。
 
 ### 語言偵測
 
@@ -1213,6 +1382,9 @@ curl /api/spots?lang=en
 
 # 日文（透過 Accept-Language）
 curl -H "Accept-Language: ja" /api/spots
+
+# 越南文
+curl /api/spots?lang=vi
 ```
 
 ### i18n 欄位列表
@@ -1239,7 +1411,8 @@ curl -H "Accept-Language: ja" /api/spots
 {
   "zh-TW": "台北101",
   "en": "Taipei 101",
-  "ja": "台北101"
+  "ja": "台北101",
+  "vi": "Đài Bắc 101"
 }
 ```
 
@@ -1294,7 +1467,10 @@ GET /api/spots/1?lang=en
 ```jsonc
 {
   "title": "3-Day Taipei Trip",      // itinerary.title
+  "cover_image_url": "https://...",   // itinerary.cover_image_url
   "destination": "Taipei",            // itinerary.destination
+  "author_name": "王小明",             // users.name (JOIN)
+  "author_avatar": "https://...",     // users.avatar_url (JOIN)
   "days": [{
     "note": "Day 1 note",             // day.note
     "spots": [{
@@ -1314,7 +1490,7 @@ GET /api/spots/1?lang=en
 
 ```sql
 -- 搜尋邏輯
-(name->>'zh-TW' ILIKE '%taipei%' OR name->>'en' ILIKE '%taipei%' OR name->>'ja' ILIKE '%taipei%')
+(name->>'zh-TW' ILIKE '%taipei%' OR name->>'en' ILIKE '%taipei%' OR name->>'ja' ILIKE '%taipei%' OR name->>'vi' ILIKE '%taipei%')
 ```
 
 ### Migration
@@ -1324,6 +1500,12 @@ npm run migrate:i18n   # 執行 migrations/005_add_i18n.sql
 ```
 
 Migration 005 將 10 個 TEXT 欄位轉為 JSONB，現有資料自動包裝為 `{"zh-TW": "原始值"}`。此操作為 **冪等**（可重複執行），不會破壞已有 JSONB 資料。
+
+```bash
+npm run migrate:vi    # 執行 migrations/006_add_vietnamese.sql
+```
+
+Migration 006 新增 `spots.name->>'vi'` 索引，支援越南文搜尋效能。
 
 ---
 
@@ -1341,3 +1523,5 @@ Migration 005 將 10 個 TEXT 欄位轉為 JSONB，現有資料自動包裝為 `
 | 1.6 | 2026-02-28 | **景點擁有權與可見性**：spots 表新增 `creator_id`（FK → users, ON DELETE SET NULL）區分官方/使用者景點、`is_public`（使用者景點預設 false）。GET 回應含 computed `source`（"official"/"user"）。新增 `optionalAuth` middleware（有 JWT 解析 user、無 JWT 不擋）套用於 `GET /api/spots`。**搜尋可見性**：未登入→官方+公開；登入→額外顯示自己的私人景點。**PUT /api/spots/:id**：動態部分更新（僅更新 body 中出現的欄位，正確處理 `0`/`null`/`false`），僅限建立者、系統景點 403。**DELETE /api/spots/:id**：僅限建立者、系統景點 403、他人行程引用 400 拒絕。**並發安全**：PUT/DELETE 使用 Transaction + `FOR UPDATE`。**錯誤處理**：errorHandler 新增 PG 23502（NOT NULL violation）→ 400。**latitude/longitude 修正**：`create` 改用 `??`（nullish coalescing）取代 `||`，正確處理值為 0 的座標。**update 字串正規化**：空字串 `""` 統一轉為 `NULL`（與 create 行為一致）。**update whitelist**：僅允許 8 個欄位更新，`id`/`creator_id`/`created_at` 等欄位自動忽略。**Seed data**：新增 3 筆使用者景點（小明私房咖啡廳/小美甜點店/阿傑釣點），展示公開+私人景點。Migration 004。測試 110→140 項。 |
 | 1.6.1 | 2026-02-28 | **Code Quality 重構**：（1）提取共用 `verifySpotOwnership` helper，消除 update/remove 間 ~20 行重複的 ownership 驗證邏輯（404/403/system spot 檢查）。（2）`ALLOWED_UPDATE_FIELDS` 和 `STRING_FIELDS` 提升至 module scope 常數，避免每次 PUT 請求重新建立。（3）消除 `search` 中 `parseFloat` 重複呼叫（lat/lng/radius 各解析兩次→一次），改用已驗證的 `latNum`/`lngNum`/`radiusNum`。（4）errorHandler PG 錯誤碼改用 `PG_ERRORS` 命名常數（取代 magic string `'22P02'` 等）。（5）`console.error(err.stack)` 移至已知 4xx client 錯誤判斷之後，僅對非預期 5xx 錯誤輸出 stack trace。無 API 行為變更，全 140 項測試通過。 |
 | 1.7 | 2026-02-28 | **多語系 (i18n)**：支援 zh-TW / en / ja 三種語言。10 個內容欄位從 TEXT 轉為 JSONB（spots.name/address、itineraries.title/destination、itinerary_days.note、itinerary_spots.note、vehicles.name/description、charter_bookings.pickup_location/dropoff_location）。**語言偵測**：`locale.js` middleware（`?lang=` → `Accept-Language` → 預設 zh-TW）。**i18n 工具**：`utils/i18n.js`（localize/localizeRow/localizeRows/toI18nValue/mergeI18nValue）。**寫入**：純字串自動包 `{locale: value}`，JSONB 物件直接存入；更新用 `||` 合併保留其他語系。**讀取**：回傳純文字（JSONB→指定語言字串），fallback zh-TW→第一個可用。**搜尋**：`keyword` 同時搜尋所有語系（`name->>'zh-TW' ILIKE` OR `->>'en'` OR `->>'ja'`）。**巢狀**：itinerary getById 遞迴 localize 所有子層（days.note、spots.note、spot.name/address）。**Seed**：所有 i18n 欄位改為三語 JSONB。**向後相容**：預設 zh-TW，回傳格式不變，現有客戶端無需修改。Migration 005（冪等）。測試 140→171 項（+31，新增 i18n.test.js 22 項）。 |
+| 1.8 | 2026-03-02 | **新增越南文 (vi)**：`SUPPORTED_LOCALES` 加入 `vi`，自動支援 `?lang=vi`、`Accept-Language: vi-VN`、越南文搜尋。Migration 006（`idx_spots_name_vi` 索引）。Seed 資料全面補充越南文翻譯（spots 25 筆、itineraries 5 筆、itinerary_days 11 筆、itinerary_spots 20 筆、vehicles 3 筆）。測試新增 5 項（middleware vi/vi-VN、搜尋 vi、CRUD vi 讀寫）。 |
+| 1.9 | 2026-03-02 | **圖片上傳 API**：新增 `POST /api/upload` 端點，行動端可上傳圖片至 S3 取得公開 URL。**上傳流程**：multer memory storage 接收 multipart/form-data → 驗證（file 存在、folder ∈ {spots, vehicles, itineraries}、MIME type ∈ {JPEG, PNG, WebP, GIF}、≤ 5 MB）→ sharp 處理（resize max width + WebP quality 80 + withoutEnlargement）→ S3 上傳（`images/{folder}/{timestamp}-{random}.webp`，public-read ACL）→ 回傳 201 `{ url }`。**新增檔案**：`controllers/uploadController.js`、`routes/upload.js`、`utils/uploadConfig.js`、`utils/s3.js`、`tests/upload.test.js`。**錯誤處理**：errorHandler 新增 multer `LIMIT_FILE_SIZE` → 400、`MulterError` → 400。**相依套件**：multer、sharp、@aws-sdk/client-s3。**環境變數**：S3_BUCKET、S3_REGION。測試 176→190 項（+14）。 |
