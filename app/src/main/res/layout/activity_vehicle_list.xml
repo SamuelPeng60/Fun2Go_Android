@@ -62,11 +62,62 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingBottom="16dp"
+                android:paddingBottom="72dp"
                 android:paddingTop="4dp"
                 android:visibility="gone" />
 
         </FrameLayout>
+
+        <!-- 底部導航列（租車高亮） -->
+        <LinearLayout
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnNavMap"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_explore_map"
+                android:tint="#AAAAAA"
+                android:contentDescription="Map" />
+
+            <ImageButton
+                android:id="@+id/btnNavMyItin"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_dialog_map"
+                android:tint="#AAAAAA"
+                android:contentDescription="@string/title_my_itineraries" />
+
+            <ImageButton
+                android:id="@+id/btnNavCharter"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_car"
+                android:tint="#F44062"
+                android:contentDescription="Charter" />
+
+            <ImageButton
+                android:id="@+id/btnNavProfile"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_google_logo"
+                android:scaleType="center"
+                android:contentDescription="Profile" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

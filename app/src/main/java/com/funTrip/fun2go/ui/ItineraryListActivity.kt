@@ -27,6 +27,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.ImageButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 
@@ -88,6 +89,27 @@ class ItineraryListActivity : AppCompatActivity() {
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
+        setupBottomNav()
+    }
+
+    private fun setupBottomNav() {
+        findViewById<ImageButton>(R.id.btnNavMap).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            })
+        }
+        // btnNavMyItin → 已在此頁，不需跳轉
+        findViewById<ImageButton>(R.id.btnNavCharter).setOnClickListener {
+            startActivity(Intent(this, VehicleListActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            })
+        }
+        findViewById<ImageButton>(R.id.btnNavProfile).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                putExtra("open_profile", true)
+            })
+        }
     }
 
     override fun onResume() {

@@ -50,6 +50,57 @@
 
         </FrameLayout>
 
+        <!-- 底部導航列（我的行程高亮） -->
+        <LinearLayout
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnNavMap"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_explore_map"
+                android:tint="#AAAAAA"
+                android:contentDescription="Map" />
+
+            <ImageButton
+                android:id="@+id/btnNavMyItin"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_dialog_map"
+                android:tint="#F44062"
+                android:contentDescription="@string/title_my_itineraries" />
+
+            <ImageButton
+                android:id="@+id/btnNavCharter"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_car"
+                android:tint="#AAAAAA"
+                android:contentDescription="Charter" />
+
+            <ImageButton
+                android:id="@+id/btnNavProfile"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_google_logo"
+                android:scaleType="center"
+                android:contentDescription="Profile" />
+
+        </LinearLayout>
+
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -57,7 +108,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="72dp"
         android:src="@android:drawable/ic_input_add"
         android:contentDescription="新增行程"
         app:backgroundTint="#F44062"

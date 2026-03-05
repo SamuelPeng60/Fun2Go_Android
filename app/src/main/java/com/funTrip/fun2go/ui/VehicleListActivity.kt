@@ -8,6 +8,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.MenuItem
 import android.view.View
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -84,6 +85,7 @@ class VehicleListActivity : AppCompatActivity() {
 
         setupChips()
         setupOrderObservers()
+        setupBottomNav()
 
         vehicleViewModel.vehicles.observe(this) { result ->
             when (result) {
@@ -311,6 +313,33 @@ class VehicleListActivity : AppCompatActivity() {
 
         sheet.setOnDismissListener { _bookingSheetRef?.invoke(null) }
         sheet.show()
+    }
+
+    private fun setupBottomNav() {
+        findViewById<ImageButton>(R.id.btnNavMap).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            })
+        }
+        findViewById<ImageButton>(R.id.btnNavMyItin).setOnClickListener {
+            val user = TokenManager.getInstance(this).getSavedUser()
+            if (user == null) {
+                startActivity(Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                })
+            } else {
+                startActivity(Intent(this, ItineraryListActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                })
+            }
+        }
+        // btnNavCharter → 已在此頁，不需跳轉
+        findViewById<ImageButton>(R.id.btnNavProfile).setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                putExtra("open_profile", true)
+            })
+        }
     }
 
     private fun setupChips() {
