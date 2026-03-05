@@ -36,6 +36,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
 
     private var itineraryId: Int = -1
     private var currentSavedSpots: List<SavedSpotEntity> = emptyList()
+    private var datePromptShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +95,11 @@ class ItineraryDetailActivity : AppCompatActivity() {
                     if (itinerary != null) {
                         supportActionBar?.title = itinerary.title
                         val days = itinerary.days ?: emptyList()
+                        // 偵測複製過來但尚未設定日期的行程（全部天數 date 為 null）
+                        if (!datePromptShown && days.isNotEmpty() && days.all { it.date.isNullOrBlank() }) {
+                            datePromptShown = true
+                            showStartDatePrompt()
+                        }
                         if (days.isEmpty()) {
                             tvEmptyDays.visibility = View.VISIBLE
                             rvDays.visibility = View.GONE
@@ -143,6 +149,20 @@ class ItineraryDetailActivity : AppCompatActivity() {
             if (result is NetworkResult.Error)
                 Snackbar.make(toolbar, getString(R.string.msg_reorder_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
         }
+
+        viewModel.initDaysResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> {
+                    pbLoading.visibility = View.GONE
+                    viewModel.loadItinerary(itineraryId)
+                }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    viewModel.loadItinerary(itineraryId)
+                }
+            }
+        }
     }
 
     private fun setupDragDrop() {
@@ -179,6 +199,14 @@ class ItineraryDetailActivity : AppCompatActivity() {
         val helper = ItemTouchHelper(callback)
         helper.attachToRecyclerView(rvDays)
         dayAdapter.itemTouchHelper = helper
+    }
+
+    private fun showStartDatePrompt() {
+        val cal = Calendar.getInstance()
+        DatePickerDialog(this, { _, year, month, dayOfMonth ->
+            val dateStr = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+            viewModel.setDatesAfterCopy(itineraryId, dateStr)
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     private fun showDatePickerForDay(itDay: ItineraryDay) {
