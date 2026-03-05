@@ -306,6 +306,33 @@ sealed class SavedListItem {
 
 ---
 
+### 18. 底部導航持久化 + UI 調整（v2.4，2026-03-06）
+- **底部導航持久化**：`ItineraryListActivity` / `VehicleListActivity` 各自加入底部導航列
+  - 當前頁 icon 高亮粉紅（#F44062），其餘灰色（#AAAAAA）
+  - 使用 `FLAG_ACTIVITY_REORDER_TO_FRONT` 切換 tab，避免 back stack 堆疊
+- **底部 icon 調整**：第 1 個改為探索羅盤圖示（`ic_explore_map.xml`），第 2 個改為地圖 icon
+- **車子 icon 放大**：`ic_car.xml` width/height 從 24dp → 30dp
+- **探索按鈕改為「我的行程」**：`btnNavExplore` 點擊 → requireLogin → `ItineraryListActivity`
+- **我的行程過濾**：`ItineraryListActivity` 客端過濾 `author_id != currentId` 的行程
+- **首頁公開行程 Panel**：改為 `MaterialCardView`（16dp 圓角、左右下留白 12dp/10dp）
+- **`PublicItineraryPanelAdapter`**：新增橫向捲動公開行程卡片（MainAcitvity 底部 Panel）
+
+---
+
+### 19. 複製行程自動設定日期（v2.4，2026-03-06）
+- **`ItineraryViewModel.setDatesAfterCopy(itineraryId, startDate)`**：
+  - 先 `getItineraryDetail` 取得已複製的天數與 ID
+  - 逐一 `updateDay` 設定日期（Day 1 = startDate, Day 2 = +1 天，依此類推）
+  - 使用 `_initDaysResult` LiveData 回報進度
+  - **注意**：不呼叫 `addDay()`，因複製 API 已建立天數；與 `initItineraryDays`（新建行程用）不同
+- **`PublicItineraryListActivity`**：點「複製」→ DatePickerDialog 選出發日 → copyItinerary → setDatesAfterCopy → 直接進 `ItineraryDetailActivity`
+- **`ItineraryDetailActivity` 自動偵測**：載入詳情後若所有天 `date == null`
+  → 顯示 Toast「請設定出發日期」→ DatePickerDialog → `setDatesAfterCopy` → reload
+  → `datePromptShown` flag 防止重複詢問
+  - 涵蓋：MainAcivity Panel 複製、舊版複製、任何路徑進入的未設日期行程
+
+---
+
 ## 已知待完成功能
 - 底部導航「聊天」頁面
 
