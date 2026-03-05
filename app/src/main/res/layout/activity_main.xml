@@ -147,7 +147,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_dialog_map"
+                android:src="@drawable/ic_explore_map"
                 android:tint="#F44062"
                 android:contentDescription="Map" />
 
@@ -157,7 +157,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_compass"
+                android:src="@android:drawable/ic_dialog_map"
                 android:tint="#AAAAAA"
                 android:contentDescription="@string/title_my_itineraries" />
 
