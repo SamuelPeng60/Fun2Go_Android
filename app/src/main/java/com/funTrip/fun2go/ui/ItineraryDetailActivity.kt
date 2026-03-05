@@ -6,6 +6,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import java.util.Calendar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -202,6 +203,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
     }
 
     private fun showStartDatePrompt() {
+        Toast.makeText(this, getString(R.string.msg_set_start_date_hint), Toast.LENGTH_SHORT).show()
         val cal = Calendar.getInstance()
         DatePickerDialog(this, { _, year, month, dayOfMonth ->
             val dateStr = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)

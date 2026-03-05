@@ -120,6 +120,7 @@
     <string name="default_itin_title">Itinerary Detail</string>
     <string name="empty_days">No days added yet</string>
     <string name="msg_load_detail_failed">Load failed: %s</string>
+    <string name="msg_set_start_date_hint">Please set the departure date</string>
     <string name="msg_spot_not_yours">This itinerary is not yours</string>
     <string name="msg_update_date_failed">Failed to update date: %s</string>
     <string name="msg_reorder_failed">Reorder sync failed: %s</string>
