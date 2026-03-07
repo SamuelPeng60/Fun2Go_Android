@@ -2,6 +2,7 @@ package com.funTrip.fun2go.ui
 
 import android.app.DatePickerDialog
 import android.os.Bundle
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
@@ -16,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.local.SavedSpotEntity
+import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.ItineraryDay
 import com.funTrip.fun2go.data.model.ItinerarySpot
 import com.funTrip.fun2go.data.remote.NetworkResult
@@ -38,6 +40,7 @@ class ItineraryDetailActivity : AppCompatActivity() {
     private var itineraryId: Int = -1
     private var currentSavedSpots: List<SavedSpotEntity> = emptyList()
     private var datePromptShown = false
+    private var currentItinerary: Itinerary? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,12 +77,50 @@ class ItineraryDetailActivity : AppCompatActivity() {
         }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
-            finish()
-            return true
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val itinerary = currentItinerary
+        val currentUserId = viewModel.currentUser?.id ?: 0
+        // 只有行程擁有者才顯示發佈按鈕
+        if (itinerary != null && currentUserId > 0 && itinerary.author_id == currentUserId) {
+            menuInflater.inflate(R.menu.menu_itinerary_detail, menu)
+            val publishItem = menu.findItem(R.id.action_publish_itinerary)
+            if (itinerary.is_public) {
+                publishItem.title = getString(R.string.menu_unpublish_itin)
+            } else {
+                publishItem.title = getString(R.string.menu_publish_itin)
+            }
         }
-        return super.onOptionsItemSelected(item)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> { finish(); true }
+            R.id.action_publish_itinerary -> {
+                val itinerary = currentItinerary ?: return true
+                if (itinerary.is_public) {
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_unpublish_itin_confirm))
+                        .setMessage(getString(R.string.msg_unpublish_itin_confirm))
+                        .setPositiveButton(getString(R.string.label_unpublish)) { _, _ ->
+                            viewModel.unpublishItinerary(itinerary)
+                        }
+                        .setNegativeButton(getString(R.string.label_cancel), null)
+                        .show()
+                } else {
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_publish_itin_confirm))
+                        .setMessage(getString(R.string.msg_publish_itin_confirm))
+                        .setPositiveButton(getString(R.string.label_publish)) { _, _ ->
+                            viewModel.publishItinerary(itinerary.id)
+                        }
+                        .setNegativeButton(getString(R.string.label_cancel), null)
+                        .show()
+                }
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupObservers() {
@@ -94,6 +135,8 @@ class ItineraryDetailActivity : AppCompatActivity() {
                     pbLoading.visibility = View.GONE
                     val itinerary = result.data
                     if (itinerary != null) {
+                        currentItinerary = itinerary
+                        invalidateOptionsMenu()
                         supportActionBar?.title = itinerary.title
                         val days = itinerary.days ?: emptyList()
                         // 偵測複製過來但尚未設定日期的行程（全部天數 date 為 null）
@@ -161,6 +204,27 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 is NetworkResult.Error -> {
                     pbLoading.visibility = View.GONE
                     viewModel.loadItinerary(itineraryId)
+                }
+            }
+        }
+
+        viewModel.publishResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> {
+                    pbLoading.visibility = View.GONE
+                    val updated = result.data ?: return@observe
+                    currentItinerary = updated
+                    invalidateOptionsMenu()
+                    val msg = if (updated.is_public)
+                        getString(R.string.msg_itin_published)
+                    else
+                        getString(R.string.msg_itin_unpublished)
+                    Snackbar.make(toolbar, msg, Snackbar.LENGTH_SHORT).show()
+                }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    Snackbar.make(toolbar, getString(R.string.msg_publish_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
                 }
             }
         }

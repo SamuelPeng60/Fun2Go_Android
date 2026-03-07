@@ -196,6 +196,25 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // ─── Publish / Unpublish ──────────────────────────────────────────────
+    private val _publishResult = MutableLiveData<NetworkResult<Itinerary>>()
+    val publishResult: LiveData<NetworkResult<Itinerary>> = _publishResult
+
+    fun publishItinerary(id: Int) {
+        _publishResult.value = NetworkResult.Loading()
+        viewModelScope.launch { _publishResult.value = repository.publishItinerary(id) }
+    }
+
+    fun unpublishItinerary(itinerary: Itinerary) {
+        _publishResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _publishResult.value = repository.updateItinerary(
+                itinerary.id, itinerary.title, itinerary.total_days,
+                itinerary.destination, itinerary.coverImageUrl, isPublic = false
+            )
+        }
+    }
+
     // ─── Image Upload ─────────────────────────────────────────────────────
     private val _uploadImageResult = MutableLiveData<NetworkResult<UploadResponse>>()
     val uploadImageResult: LiveData<NetworkResult<UploadResponse>> = _uploadImageResult

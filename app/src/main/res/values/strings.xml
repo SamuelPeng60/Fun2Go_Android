@@ -152,6 +152,17 @@
     <string name="default_itin_title">行程詳情</string>
     <string name="empty_days">目前尚無行程天數</string>
     <string name="msg_load_detail_failed">載入失敗：%s</string>
+    <string name="menu_publish_itin">發佈行程</string>
+    <string name="menu_unpublish_itin">取消發佈</string>
+    <string name="title_publish_itin_confirm">發佈行程</string>
+    <string name="msg_publish_itin_confirm">發佈後此行程將公開讓所有人瀏覽與複製，確認發佈？</string>
+    <string name="title_unpublish_itin_confirm">取消發佈</string>
+    <string name="msg_unpublish_itin_confirm">取消發佈後此行程將恢復私人，確認取消？</string>
+    <string name="label_publish">發佈</string>
+    <string name="label_unpublish">取消發佈</string>
+    <string name="msg_itin_published">行程已發佈 🌍</string>
+    <string name="msg_itin_unpublished">行程已設為私人</string>
+    <string name="msg_publish_failed">操作失敗：%s</string>
     <string name="msg_set_start_date_hint">請設定出發日期</string>
     <string name="msg_spot_not_yours">此行程不屬於您，無法修改景點</string>
     <string name="msg_update_date_failed">更新日期失敗：%s</string>

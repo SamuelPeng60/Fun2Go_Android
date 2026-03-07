@@ -123,6 +123,17 @@
     <string name="default_itin_title">Itinerary Detail</string>
     <string name="empty_days">No days added yet</string>
     <string name="msg_load_detail_failed">Load failed: %s</string>
+    <string name="menu_publish_itin">Publish</string>
+    <string name="menu_unpublish_itin">Unpublish</string>
+    <string name="title_publish_itin_confirm">Publish Itinerary</string>
+    <string name="msg_publish_itin_confirm">Publishing will make this itinerary visible and copyable by everyone. Confirm?</string>
+    <string name="title_unpublish_itin_confirm">Unpublish Itinerary</string>
+    <string name="msg_unpublish_itin_confirm">Unpublishing will make this itinerary private again. Confirm?</string>
+    <string name="label_publish">Publish</string>
+    <string name="label_unpublish">Unpublish</string>
+    <string name="msg_itin_published">Itinerary published 🌍</string>
+    <string name="msg_itin_unpublished">Itinerary set to private</string>
+    <string name="msg_publish_failed">Operation failed: %s</string>
     <string name="msg_set_start_date_hint">Please set the departure date</string>
     <string name="msg_spot_not_yours">This itinerary is not yours</string>
     <string name="msg_update_date_failed">Failed to update date: %s</string>

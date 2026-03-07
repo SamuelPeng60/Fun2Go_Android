@@ -77,8 +77,8 @@ class TripRepository : BaseRepository() {
 
     // --- Itineraries ---
 
-    suspend fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null) = safeApiCall {
-        api.updateItinerary(id, ItineraryRequest(title, totalDays, destination?.ifEmpty { null }, cover_image_url = coverImageUrl))
+    suspend fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null, isPublic: Boolean? = null) = safeApiCall {
+        api.updateItinerary(id, ItineraryRequest(title, totalDays, destination?.ifEmpty { null }, is_public = isPublic, cover_image_url = coverImageUrl))
     }
 
     suspend fun deleteItinerary(id: Int) = safeApiCall { api.deleteItinerary(id) }
