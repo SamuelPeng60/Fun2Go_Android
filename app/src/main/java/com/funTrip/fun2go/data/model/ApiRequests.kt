@@ -8,7 +8,8 @@ data class ItineraryRequest(
     val title: String,
     val total_days: Int? = null,
     val destination: String? = null,
-    val is_public: Boolean? = null
+    val is_public: Boolean? = null,
+    val cover_image_url: String? = null
 )
 
 // 新增景點到行程的一天

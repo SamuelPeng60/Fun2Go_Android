@@ -105,6 +105,9 @@
     <string name="msg_itin_title_required">Itinerary name is required</string>
     <string name="msg_create_itin_failed">Create failed: %s</string>
     <string name="msg_update_itin_failed">Update failed: %s</string>
+    <string name="label_pick_cover_image">Pick Cover Image</string>
+    <string name="msg_itin_image_upload_failed">Cover image upload failed: %s</string>
+    <string name="msg_itin_image_read_failed">Cannot read cover image</string>
     <string name="msg_delete_failed">Delete failed: %s</string>
     <string name="msg_init_days_failed">Failed to initialize days: %s</string>
 

@@ -46,9 +46,9 @@ class TripRepository : BaseRepository() {
     }
 
     // 建立行程
-    suspend fun createItinerary(title: String, totalDays: Int?, destination: String?): NetworkResult<Itinerary> {
+    suspend fun createItinerary(title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null): NetworkResult<Itinerary> {
         val result = safeApiCall {
-            api.createItinerary(ItineraryRequest(title, totalDays, destination?.ifEmpty { null }))
+            api.createItinerary(ItineraryRequest(title, totalDays, destination?.ifEmpty { null }, cover_image_url = coverImageUrl))
         }
         // 後端 bug 防護：行程建立成功但 user_id=null → 無法新增天數(403)
         if (result is NetworkResult.Success && (result.data?.author_id ?: 0) == 0) {
@@ -77,8 +77,8 @@ class TripRepository : BaseRepository() {
 
     // --- Itineraries ---
 
-    suspend fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?) = safeApiCall {
-        api.updateItinerary(id, ItineraryRequest(title, totalDays, destination?.ifEmpty { null }))
+    suspend fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null) = safeApiCall {
+        api.updateItinerary(id, ItineraryRequest(title, totalDays, destination?.ifEmpty { null }, cover_image_url = coverImageUrl))
     }
 
     suspend fun deleteItinerary(id: Int) = safeApiCall { api.deleteItinerary(id) }

@@ -134,6 +134,9 @@
     <string name="msg_itin_title_required">行程名稱不能為空</string>
     <string name="msg_create_itin_failed">建立失敗：%s</string>
     <string name="msg_update_itin_failed">更新失敗：%s</string>
+    <string name="label_pick_cover_image">選擇封面圖</string>
+    <string name="msg_itin_image_upload_failed">封面圖上傳失敗：%s</string>
+    <string name="msg_itin_image_read_failed">無法讀取封面圖</string>
     <string name="msg_delete_failed">刪除失敗：%s</string>
     <string name="msg_init_days_failed">初始化天數失敗：%s</string>
 

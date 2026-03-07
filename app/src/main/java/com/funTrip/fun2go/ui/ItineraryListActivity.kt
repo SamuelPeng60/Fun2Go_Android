@@ -2,21 +2,26 @@ package com.funTrip.fun2go.ui
 
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import java.util.Calendar
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
+import com.funTrip.fun2go.data.model.UploadResponse
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.ItineraryAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
@@ -28,6 +33,7 @@ import com.google.android.material.snackbar.Snackbar
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ImageButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 
@@ -44,6 +50,11 @@ class ItineraryListActivity : AppCompatActivity() {
     private var createDialog: BottomSheetDialog? = null
     private var editDialog: BottomSheetDialog? = null
     private var pendingItinerary: Itinerary? = null
+
+    private var onImagePickedCallback: ((Uri) -> Unit)? = null
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> uri?.let { onImagePickedCallback?.invoke(it) } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -221,14 +232,17 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_create_itinerary, null)
 
-        val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
-        val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
-        val etStartDate = view.findViewById<TextInputEditText>(R.id.etStartDate)
-        val btnCreate   = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
-        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
-        val pbCreating  = view.findViewById<ProgressBar>(R.id.pbCreating)
+        val tilTitle      = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle       = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val actvDest      = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
+        val etTotalDays   = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val etStartDate   = view.findViewById<TextInputEditText>(R.id.etStartDate)
+        val btnCreate     = view.findViewById<MaterialButton>(R.id.btnCreateItinerary)
+        val btnCancel     = view.findViewById<MaterialButton>(R.id.btnCancelCreate)
+        val pbCreating    = view.findViewById<ProgressBar>(R.id.pbCreating)
+        val btnPickCover  = view.findViewById<MaterialButton>(R.id.btnPickCoverImage)
+        val ivCover       = view.findViewById<ImageView>(R.id.ivCoverPreview)
+        val cardCover     = view.findViewById<MaterialCardView>(R.id.cardCoverPreview)
 
         val destinations = resources.getStringArray(R.array.destinations)
         actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
@@ -241,6 +255,16 @@ class ItineraryListActivity : AppCompatActivity() {
                 selectedStartDate = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
                 etStartDate.setText(selectedStartDate)
             }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }
+
+        var pendingCoverUri: Uri? = null
+        btnPickCover.setOnClickListener {
+            onImagePickedCallback = { uri ->
+                pendingCoverUri = uri
+                cardCover.visibility = View.VISIBLE
+                ivCover.load(uri)
+            }
+            imagePickerLauncher.launch("image/*")
         }
 
         // hasStarted：防止 LiveData sticky 把舊的 Success/Error 立刻送進來
@@ -277,6 +301,26 @@ class ItineraryListActivity : AppCompatActivity() {
         }
         viewModel.createResult.observe(this, createObserver)
 
+        val uploadObserver = Observer<NetworkResult<UploadResponse>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> { /* pbCreating already visible */ }
+                is NetworkResult.Success -> {
+                    val url = result.data?.url
+                    pendingCoverUri = null
+                    val title     = etTitle.text?.toString()?.trim() ?: ""
+                    val dest      = actvDest.text?.toString()?.trim()
+                    val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+                    viewModel.createItinerary(title, totalDays, dest, url)
+                }
+                is NetworkResult.Error -> {
+                    btnCreate.isEnabled = true
+                    pbCreating.visibility = View.GONE
+                    Snackbar.make(view, getString(R.string.msg_itin_image_upload_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
+                }
+            }
+        }
+        viewModel.uploadImageResult.observe(this, uploadObserver)
+
         btnCreate.setOnClickListener {
             val title = etTitle.text?.toString()?.trim() ?: ""
             if (title.isEmpty()) {
@@ -286,13 +330,27 @@ class ItineraryListActivity : AppCompatActivity() {
             tilTitle.error = null
             val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
-            viewModel.createItinerary(title, totalDays, dest)
+            val uri = pendingCoverUri
+            if (uri != null) {
+                val mime = contentResolver.getType(uri) ?: "image/jpeg"
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    Snackbar.make(view, getString(R.string.msg_itin_image_read_failed), Snackbar.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                btnCreate.isEnabled = false
+                pbCreating.visibility = View.VISIBLE
+                viewModel.uploadImage("itineraries", bytes, mime)
+            } else {
+                viewModel.createItinerary(title, totalDays, dest)
+            }
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }
 
         dialog.setOnDismissListener {
             viewModel.createResult.removeObserver(createObserver)
+            viewModel.uploadImageResult.removeObserver(uploadObserver)
             createDialog = null
         }
 
@@ -306,13 +364,16 @@ class ItineraryListActivity : AppCompatActivity() {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_edit_itinerary, null)
 
-        val tilTitle    = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
-        val etTitle     = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
-        val actvDest    = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
-        val etTotalDays = view.findViewById<TextInputEditText>(R.id.etTotalDays)
-        val btnUpdate   = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
-        val btnCancel   = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
-        val pbUpdating  = view.findViewById<ProgressBar>(R.id.pbUpdating)
+        val tilTitle     = view.findViewById<TextInputLayout>(R.id.tilItineraryTitle)
+        val etTitle      = view.findViewById<TextInputEditText>(R.id.etItineraryTitle)
+        val actvDest     = view.findViewById<AutoCompleteTextView>(R.id.actvDestination)
+        val etTotalDays  = view.findViewById<TextInputEditText>(R.id.etTotalDays)
+        val btnUpdate    = view.findViewById<MaterialButton>(R.id.btnUpdateItinerary)
+        val btnCancel    = view.findViewById<MaterialButton>(R.id.btnCancelEdit)
+        val pbUpdating   = view.findViewById<ProgressBar>(R.id.pbUpdating)
+        val btnPickCover = view.findViewById<MaterialButton>(R.id.btnPickCoverImage)
+        val ivCover      = view.findViewById<ImageView>(R.id.ivCoverPreview)
+        val cardCover    = view.findViewById<MaterialCardView>(R.id.cardCoverPreview)
 
         val destinations = resources.getStringArray(R.array.destinations)
         actvDest.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, destinations))
@@ -321,6 +382,22 @@ class ItineraryListActivity : AppCompatActivity() {
         etTitle.setText(itinerary.title)
         actvDest.setText(itinerary.destination ?: "", false)
         etTotalDays.setText(if (itinerary.total_days > 0) itinerary.total_days.toString() else "")
+
+        var currentCoverUrl = itinerary.coverImageUrl
+        if (!currentCoverUrl.isNullOrEmpty()) {
+            cardCover.visibility = View.VISIBLE
+            ivCover.load(currentCoverUrl)
+        }
+
+        var pendingCoverUri: Uri? = null
+        btnPickCover.setOnClickListener {
+            onImagePickedCallback = { uri ->
+                pendingCoverUri = uri
+                cardCover.visibility = View.VISIBLE
+                ivCover.load(uri)
+            }
+            imagePickerLauncher.launch("image/*")
+        }
 
         // hasStarted：防止 LiveData sticky 把舊的 Success 立刻送進來（避免 dialog 一開就關）
         var hasStarted = false
@@ -351,6 +428,26 @@ class ItineraryListActivity : AppCompatActivity() {
         }
         viewModel.updateResult.observe(this, updateObserver)
 
+        val uploadObserver = Observer<NetworkResult<UploadResponse>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> { /* pbUpdating already visible */ }
+                is NetworkResult.Success -> {
+                    val url = result.data?.url ?: currentCoverUrl
+                    pendingCoverUri = null
+                    val title     = etTitle.text?.toString()?.trim() ?: ""
+                    val dest      = actvDest.text?.toString()?.trim()
+                    val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
+                    viewModel.updateItinerary(itinerary.id, title, totalDays, dest, url)
+                }
+                is NetworkResult.Error -> {
+                    btnUpdate.isEnabled = true
+                    pbUpdating.visibility = View.GONE
+                    Snackbar.make(view, getString(R.string.msg_itin_image_upload_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
+                }
+            }
+        }
+        viewModel.uploadImageResult.observe(this, uploadObserver)
+
         btnUpdate.setOnClickListener {
             val title = etTitle.text?.toString()?.trim() ?: ""
             if (title.isEmpty()) {
@@ -360,13 +457,27 @@ class ItineraryListActivity : AppCompatActivity() {
             tilTitle.error = null
             val dest      = actvDest.text?.toString()?.trim()
             val totalDays = etTotalDays.text?.toString()?.trim()?.toIntOrNull()
-            viewModel.updateItinerary(itinerary.id, title, totalDays, dest)
+            val uri = pendingCoverUri
+            if (uri != null) {
+                val mime = contentResolver.getType(uri) ?: "image/jpeg"
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    Snackbar.make(view, getString(R.string.msg_itin_image_read_failed), Snackbar.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                btnUpdate.isEnabled = false
+                pbUpdating.visibility = View.VISIBLE
+                viewModel.uploadImage("itineraries", bytes, mime)
+            } else {
+                viewModel.updateItinerary(itinerary.id, title, totalDays, dest, currentCoverUrl)
+            }
         }
 
         btnCancel.setOnClickListener { dialog.dismiss() }
 
         dialog.setOnDismissListener {
             viewModel.updateResult.removeObserver(updateObserver)
+            viewModel.uploadImageResult.removeObserver(uploadObserver)
             editDialog = null
         }
 

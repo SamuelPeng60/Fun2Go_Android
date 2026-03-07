@@ -26,6 +26,39 @@
         android:textStyle="bold"
         android:textColor="#222222" />
 
+    <!-- 封面圖預覽 -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardCoverPreview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"
+        app:cardCornerRadius="8dp">
+
+        <ImageView
+            android:id="@+id/ivCoverPreview"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:scaleType="centerCrop" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPickCoverImage"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:text="@string/label_pick_cover_image"
+        android:textColor="#F44062"
+        app:cornerRadius="24dp"
+        app:icon="@drawable/ic_photo"
+        app:iconTint="#F44062"
+        app:strokeColor="#F44062" />
+
     <!-- 行程名稱 -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tilItineraryTitle"

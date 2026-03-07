@@ -10,6 +10,7 @@ import com.funTrip.fun2go.data.local.SavedSpotEntity
 import com.funTrip.fun2go.data.local.TokenManager
 import com.funTrip.fun2go.data.model.AddSpotToDayRequest
 import com.funTrip.fun2go.data.model.Itinerary
+import com.funTrip.fun2go.data.model.UploadResponse
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
@@ -195,6 +196,17 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // ─── Image Upload ─────────────────────────────────────────────────────
+    private val _uploadImageResult = MutableLiveData<NetworkResult<UploadResponse>>()
+    val uploadImageResult: LiveData<NetworkResult<UploadResponse>> = _uploadImageResult
+
+    fun uploadImage(folder: String, bytes: ByteArray, mimeType: String) {
+        _uploadImageResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _uploadImageResult.value = repository.uploadImage(folder, bytes, mimeType)
+        }
+    }
+
     // ─── User Itinerary List (used by ItineraryListActivity) ──────────────
     private val _userItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItineraries: LiveData<NetworkResult<List<Itinerary>>> = _userItineraries
@@ -216,17 +228,17 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun createItinerary(title: String, totalDays: Int?, destination: String?) {
+    fun createItinerary(title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null) {
         _createResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _createResult.value = repository.createItinerary(title, totalDays, destination)
+            _createResult.value = repository.createItinerary(title, totalDays, destination, coverImageUrl)
         }
     }
 
-    fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?) {
+    fun updateItinerary(id: Int, title: String, totalDays: Int?, destination: String?, coverImageUrl: String? = null) {
         _updateResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _updateResult.value = repository.updateItinerary(id, title, totalDays, destination)
+            _updateResult.value = repository.updateItinerary(id, title, totalDays, destination, coverImageUrl)
         }
     }
 }
