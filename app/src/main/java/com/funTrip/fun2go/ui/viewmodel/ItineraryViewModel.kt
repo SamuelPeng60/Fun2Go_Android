@@ -14,7 +14,6 @@ import com.funTrip.fun2go.data.model.UploadResponse
 import com.funTrip.fun2go.data.model.User
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.data.repository.TripRepository
-import android.util.Log
 import kotlinx.coroutines.launch
 
 class ItineraryViewModel(application: Application) : AndroidViewModel(application) {
@@ -237,13 +236,9 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     val updateResult: LiveData<NetworkResult<Itinerary>> = _updateResult
 
     fun fetchUserItineraries(userId: Int) {
-        Log.d("ILA_DEBUG", "ViewModel.fetchUserItineraries: userId=$userId")
         _userItineraries.value = NetworkResult.Loading()
         viewModelScope.launch {
-            val result = repository.getUserItineraries(userId)
-            Log.d("ILA_DEBUG", "ViewModel.fetchUserItineraries result: ${result::class.simpleName}" +
-                    if (result is NetworkResult.Success) ", count=${result.data?.size}" else ", msg=${(result as? NetworkResult.Error)?.message}")
-            _userItineraries.value = result
+            _userItineraries.value = repository.getUserItineraries(userId)
         }
     }
 

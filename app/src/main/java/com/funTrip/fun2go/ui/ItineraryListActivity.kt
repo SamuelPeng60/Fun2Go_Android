@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import java.util.Calendar
-import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.ImageView
@@ -126,7 +125,6 @@ class ItineraryListActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val userId = viewModel.currentUser?.id
-        Log.d("ILA_DEBUG", "onResume: userId=$userId")
         if (userId == null) {
             finish()
             return
@@ -146,8 +144,6 @@ class ItineraryListActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.userItineraries.observe(this) { result ->
-            Log.d("ILA_DEBUG", "userItineraries: ${result::class.simpleName}" +
-                if (result is NetworkResult.Success) " count=${result.data?.size}" else "")
             when (result) {
                 is NetworkResult.Loading -> {
                     pbLoading.visibility = View.VISIBLE
@@ -173,7 +169,6 @@ class ItineraryListActivity : AppCompatActivity() {
                     }
                 }
                 is NetworkResult.Error -> {
-                    Log.d("ILA_DEBUG", "userItineraries Error: ${result.message}")
                     pbLoading.visibility = View.GONE
                     tvEmpty.text = getString(R.string.msg_load_itin_failed)
                     tvEmpty.visibility = View.VISIBLE
@@ -285,7 +280,6 @@ class ItineraryListActivity : AppCompatActivity() {
                     btnCreate.isEnabled = true
                     pbCreating.visibility = View.GONE
                     val itinerary = result.data ?: return@Observer
-                    Log.d("ILA_DEBUG", "create Success itinerary.id=${itinerary.id}")
                     pendingItinerary = itinerary
                     dialog.dismiss()
                     pbCreating.visibility = View.VISIBLE

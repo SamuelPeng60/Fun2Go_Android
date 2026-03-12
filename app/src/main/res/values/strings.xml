@@ -31,7 +31,9 @@
     <!-- ── 通用按鈕 ─────────────────────────────────────── -->
     <string name="label_cancel">取消</string>
     <string name="label_copy_itinerary">複製</string>
+    <string name="label_copy_itin">複製行程</string>
     <string name="label_save">儲存</string>
+    <string name="label_edit">編輯</string>
     <string name="label_delete">刪除</string>
     <string name="label_logout">登出</string>
     <string name="label_pay_now">立即付款</string>
@@ -174,6 +176,12 @@
     <string name="msg_tap_to_set_date">點擊設定日期</string>
     <string name="format_spots_count">%d 個景點</string>
     <string name="format_day_label_full">第%1$d天%2$s（%3$d 個景點）</string>
+
+    <!-- ── 行程卡片 ─────────────────────────────────────── -->
+    <string name="empty_destination">未設定目的地</string>
+    <string name="format_day_count">%d 天</string>
+    <string name="format_copy_count">被複製 %d 次</string>
+    <string name="badge_public">公開</string>
 
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">探索行程</string>

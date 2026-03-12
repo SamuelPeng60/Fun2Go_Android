@@ -334,7 +334,7 @@ sealed class SavedListItem {
 ---
 
 ## 已知待完成功能
-- 底部導航「聊天」頁面
+- 無
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤

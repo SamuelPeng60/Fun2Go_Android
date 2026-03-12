@@ -2,7 +2,9 @@
     <!-- ── 通用按鈕 ─────────────────────────────────────── -->
     <string name="label_cancel">Cancel</string>
     <string name="label_copy_itinerary">Copy</string>
+    <string name="label_copy_itin">Copy Itinerary</string>
     <string name="label_save">Save</string>
+    <string name="label_edit">Edit</string>
     <string name="label_delete">Delete</string>
     <string name="label_logout">Logout</string>
     <string name="label_pay_now">Pay Now</string>
@@ -145,6 +147,12 @@
     <string name="msg_tap_to_set_date">Tap to set date</string>
     <string name="format_spots_count">%d spots</string>
     <string name="format_day_label_full">Day %1$d%2$s (%3$d spots)</string>
+
+    <!-- ── 行程卡片 ─────────────────────────────────────── -->
+    <string name="empty_destination">No destination</string>
+    <string name="format_day_count">%d days</string>
+    <string name="format_copy_count">Copied %d times</string>
+    <string name="badge_public">Public</string>
 
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">My Itineraries</string>
