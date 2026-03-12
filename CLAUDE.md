@@ -333,6 +333,39 @@ sealed class SavedListItem {
 
 ---
 
+### 20. Code Review 改善 + Bug Fixes（v2.5，2026-03-12）
+
+#### i18n 補完
+- **`ItineraryAdapter`**：移除 hardcoded 中文，改用 `ctx.getString(R.string.empty_destination)` / `R.string.format_day_count`
+- **`PublicItineraryAdapter`**：移除 hardcoded 中文，改用 `ctx.getString()` 取得所有顯示字串
+- **`item_itinerary.xml`** / **`item_public_itinerary.xml`**：hardcoded text → `@string/` 參照
+- 新增字串 key：`label_edit`、`label_copy_itin`、`empty_destination`、`format_day_count`、`format_copy_count`、`badge_public`（中英文雙版本）
+
+#### UI 改善
+- **`item_itinerary.xml`** 重寫為 `MaterialCardView`：頂部新增 `ivCover`（ImageView 120dp，GONE）、`tvPublicBadge`（已發佈標示，`bg_badge_public.xml` 圓角背景，GONE）
+- **`item_public_itinerary.xml`** 新增 `ivCover`（140dp）+ `ivAuthorAvatar`（24dp 圓形）
+- **`ItineraryAdapter`** 新增封面圖（Coil `crossfade`）+ 已發佈 badge 顯示邏輯
+- **`PublicItineraryAdapter`** 新增封面圖 + 作者頭像（`CircleCropTransformation`）
+- 新增 Drawable：`bg_badge_public.xml`（粉紅圓角背景）
+
+#### DiffUtil 優化
+- **`ItineraryAdapter`** / **`PublicItineraryAdapter`** 的 `submitList()` 改用 `DiffUtil.calculateDiff()` + `dispatchUpdatesTo(this)`，取代 `notifyDataSetChanged()`，支援動畫且效能更佳
+
+#### Debug Log 清除
+- **`ItineraryListActivity`** / **`ItineraryViewModel`**：移除所有 `Log.d("ILA_DEBUG", ...)` 共 6 處 + 移除 `import android.util.Log`
+
+#### Bug Fix：無行程時新增景點 → 建立行程後自動加入
+- **根本原因**：建立行程 → `initItineraryDays` 完成後只導航到行程詳情，景點未自動加入
+- **修復**：`MainActivity` 新增 `pendingSpotForItinerary: Spot?` 狀態變數；「前往建立行程」AlertDialog 點擊時儲存 `pendingSpotForItinerary = spot`；`initDaysResult` Success 後偵測是否有 pending spot，有則呼叫 `addPendingSpotToNewItinerary()`
+- **`addPendingSpotToNewItinerary(itinerary, spot)`**：加入 Room DB + favorites → `getItineraryDetail` 取得天數 → 0 天直接 `addSpotToExistingItinerary`；1 天直接加入；多天 AlertDialog 選天數 → `addSpotToDayById` → 導向詳情頁
+
+#### Bug Fix：刪除行程後景點 icon 恢復未加入狀態
+- **根本原因**：刪除行程後 Room DB 未同步移除景點，`savedSpots` 仍保有已加入記錄，地圖 icon 不更新
+- **`ItineraryViewModel.deleteItinerary()`** 修改：刪除前先 `getItineraryDetail` 取得所有景點 `spot_id`，刪除成功後批次 `dao.deleteById(spotId)` 從 Room DB 移除
+- **`MainActivity.savedSpotsLiveData` observer** 修改：移除 `hasLoadedFromDb` 一次性保護旗標，改為每次 DB 變動都同步 `savedSpots` 並呼叫 `filterAndPlaceMarkers()`，確保地圖 icon 即時反映最新狀態
+
+---
+
 ## 已知待完成功能
 - 無
 
