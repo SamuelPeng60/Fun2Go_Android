@@ -67,7 +67,18 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     fun deleteItinerary(id: Int) {
         _deleteResult.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _deleteResult.value = repository.deleteItinerary(id)
+            // 刪除前先取得行程景點，成功後從 Room DB 移除（使 MainActivity 自動同步）
+            val detail = (repository.getItineraryDetail(id) as? NetworkResult.Success)?.data
+            val spotIds = detail?.days
+                ?.flatMap { day -> day.spots?.map { it.spot_id } ?: emptyList() }
+                ?: emptyList()
+
+            val result = repository.deleteItinerary(id)
+            if (result is NetworkResult.Success && spotIds.isNotEmpty()) {
+                val dao = AppDatabase.getDatabase(getApplication()).savedSpotDao()
+                spotIds.forEach { spotId -> dao.deleteById(spotId) }
+            }
+            _deleteResult.value = result
         }
     }
 

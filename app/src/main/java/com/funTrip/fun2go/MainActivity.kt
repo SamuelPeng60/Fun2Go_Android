@@ -141,7 +141,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // 我的列表
     private val savedSpots = mutableListOf<Spot>()
-    private var hasLoadedFromDb = false
 
     private var pendingNavigationItinerary: Itinerary? = null
     private var pendingStartDate: String? = null
@@ -557,12 +556,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun initViewModel() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
-        // 從 Room 載入已儲存景點（僅一次）
+        // 從 Room 載入已儲存景點，Room DB 有任何變動（新增/刪除）都自動同步
         viewModel.savedSpotsLiveData.observe(this) { entities ->
-            if (!hasLoadedFromDb) {
-                hasLoadedFromDb = true
-                savedSpots.addAll(entities.map { it.toSpot() })
-            }
+            savedSpots.clear()
+            savedSpots.addAll(entities.map { it.toSpot() })
+            if (::googleMap.isInitialized) filterAndPlaceMarkers()
         }
 
         // Header 由 currentUserLiveData 驅動
