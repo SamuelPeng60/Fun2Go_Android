@@ -258,7 +258,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _userItinerariesResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
             val result = repository.getUserItineraries(userId)
-            if (result is NetworkResult.Success) cachedUserItineraries = result.data ?: emptyList()
+            if (result is NetworkResult.Success) {
+                cachedUserItineraries = result.data ?: emptyList()
+                if (cachedUserItineraries.isEmpty()) savedSpotDao.deleteAll()
+            }
             _userItinerariesResponse.value = result
         }
     }

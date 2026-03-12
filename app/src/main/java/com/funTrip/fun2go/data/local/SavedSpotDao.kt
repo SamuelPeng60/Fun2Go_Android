@@ -17,4 +17,7 @@ interface SavedSpotDao {
 
     @Query("DELETE FROM saved_spots WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    @Query("DELETE FROM saved_spots")
+    suspend fun deleteAll()
 }

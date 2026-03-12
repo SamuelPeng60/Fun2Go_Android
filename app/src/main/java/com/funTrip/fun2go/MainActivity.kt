@@ -677,9 +677,9 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
-        // 登入後從後端同步收藏清單
+        // 登入後從後端同步收藏清單（若用戶無任何行程則跳過，避免舊 favorites 殘留）
         viewModel.userFavoritesResponse.observe(this) { result ->
-            if (result is NetworkResult.Success) {
+            if (result is NetworkResult.Success && viewModel.cachedUserItineraries.isNotEmpty()) {
                 result.data?.forEach { spot ->
                     if (!savedSpots.any { it.id == spot.id }) {
                         viewModel.addSavedSpot(spot)
