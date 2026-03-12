@@ -364,6 +364,14 @@ sealed class SavedListItem {
 - **`ItineraryViewModel.deleteItinerary()`** 修改：刪除前先 `getItineraryDetail` 取得所有景點 `spot_id`，刪除成功後批次 `dao.deleteById(spotId)` 從 Room DB 移除
 - **`MainActivity.savedSpotsLiveData` observer** 修改：移除 `hasLoadedFromDb` 一次性保護旗標，改為每次 DB 變動都同步 `savedSpots` 並呼叫 `filterAndPlaceMarkers()`，確保地圖 icon 即時反映最新狀態
 
+#### Bug Fix：無行程時景點仍顯示 ADDED 狀態（v2.5 補丁）
+- **根本原因（雙重）**：
+  1. Room DB 保有舊行程的殘留景點（fix 部署前刪除的行程未清除 DB）
+  2. 登入時 `userFavoritesResponse` observer 會把後端 favorites 重新寫入 Room DB，即使用戶已無任何行程
+- **`SavedSpotDao`** 新增 `deleteAll()`（`DELETE FROM saved_spots`）
+- **`MainViewModel.fetchUserItineraries()`**：API 回傳 Success 且列表為空時呼叫 `savedSpotDao.deleteAll()`，確保「無行程 = 無 ADDED 景點」
+- **`MainActivity.userFavoritesResponse` observer**：加入 `viewModel.cachedUserItineraries.isNotEmpty()` 檢查，防止後端 favorites 在無行程時把景點重新寫入 Room DB
+
 ---
 
 ## 已知待完成功能
