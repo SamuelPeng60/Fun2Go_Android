@@ -145,6 +145,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private var pendingNavigationItinerary: Itinerary? = null
     private var pendingStartDate: String? = null
+    private var pendingSpotForItinerary: Spot? = null
 
     private lateinit var categoryMap: LinkedHashMap<String, String>
 
@@ -498,7 +499,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 AlertDialog.Builder(this)
                     .setTitle(getString(R.string.title_no_itinerary))
                     .setMessage(getString(R.string.msg_no_itinerary))
-                    .setPositiveButton(getString(R.string.label_go_create)) { _, _ -> showCreateItinerarySheet() }
+                    .setPositiveButton(getString(R.string.label_go_create)) { _, _ ->
+                        pendingSpotForItinerary = spot
+                        showCreateItinerarySheet()
+                    }
                     .setNegativeButton(getString(R.string.label_cancel), null)
                     .show()
                 return@setOnClickListener
@@ -653,15 +657,24 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 is NetworkResult.Success -> {
                     showLoading(false)
                     pendingStartDate = null
-                    pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
+                    val itin = pendingNavigationItinerary
                     pendingNavigationItinerary = null
+                    val pendingSpot = pendingSpotForItinerary
+                    pendingSpotForItinerary = null
+                    if (itin != null && pendingSpot != null) {
+                        addPendingSpotToNewItinerary(itin, pendingSpot)
+                    } else {
+                        itin?.let { navigateToItineraryDetail(it) }
+                    }
                 }
                 is NetworkResult.Error -> {
                     showLoading(false)
                     pendingStartDate = null
                     Toast.makeText(this, getString(R.string.msg_init_days_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
-                    pendingNavigationItinerary?.let { navigateToItineraryDetail(it) }
+                    val itin = pendingNavigationItinerary
                     pendingNavigationItinerary = null
+                    pendingSpotForItinerary = null
+                    itin?.let { navigateToItineraryDetail(it) }
                 }
             }
         }
@@ -800,6 +813,71 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             .addOnFailureListener {
                 Toast.makeText(this, getString(R.string.msg_location_failed, it.message ?: ""), Toast.LENGTH_SHORT).show()
             }
+    }
+
+    // ─── 建立行程後自動加入待加景點 ─────────────────────────────
+
+    private fun addPendingSpotToNewItinerary(itinerary: Itinerary, spot: Spot) {
+        // 加入本地列表 + 後端收藏（若尚未加入）
+        if (!savedSpots.any { it.id == spot.id }) {
+            savedSpots.add(spot)
+            viewModel.addSavedSpot(spot)
+            val uid = viewModel.currentUser?.id ?: 0
+            if (uid > 0) viewModel.addFavorite(uid, spot.id)
+        }
+        // 重新整理快取行程列表
+        viewModel.currentUser?.id?.takeIf { it > 0 }?.let { viewModel.fetchUserItineraries(it) }
+
+        // 取得新行程的天數，再決定直接加入還是顯示天數選擇器
+        viewModel.fetchItineraryDetail(itinerary.id)
+        var seenLoading = false
+        var obs: androidx.lifecycle.Observer<NetworkResult<Itinerary>>? = null
+        obs = androidx.lifecycle.Observer { result ->
+            when (result) {
+                is NetworkResult.Loading -> seenLoading = true
+                is NetworkResult.Success -> if (seenLoading) {
+                    seenLoading = false
+                    viewModel.itineraryDetail.removeObserver(obs!!)
+                    val days = result.data?.days.orEmpty()
+                    when {
+                        days.isEmpty() -> {
+                            viewModel.addSpotToExistingItinerary(itinerary.id, spot)
+                            navigateToItineraryDetail(itinerary)
+                        }
+                        days.size == 1 -> {
+                            viewModel.addSpotToDayById(days[0].id, spot.id, (days[0].spots?.size ?: 0) + 1)
+                            navigateToItineraryDetail(itinerary)
+                        }
+                        else -> {
+                            // 多天：先讓用戶選天，選完後導向詳情頁
+                            val labels = days.map { day ->
+                                val dateStr = if (day.date.isNullOrBlank()) "" else " · ${day.date}"
+                                getString(R.string.format_day_label_full, day.day_number, dateStr, day.spots?.size ?: 0)
+                            }.toTypedArray()
+                            AlertDialog.Builder(this)
+                                .setTitle(getString(R.string.title_select_day))
+                                .setItems(labels) { _, i ->
+                                    val day = days[i]
+                                    viewModel.addSpotToDayById(day.id, spot.id, (day.spots?.size ?: 0) + 1)
+                                    navigateToItineraryDetail(itinerary)
+                                }
+                                .setNegativeButton(getString(R.string.label_cancel)) { _, _ ->
+                                    navigateToItineraryDetail(itinerary)
+                                }
+                                .show()
+                        }
+                    }
+                }
+                is NetworkResult.Error -> if (seenLoading) {
+                    seenLoading = false
+                    viewModel.itineraryDetail.removeObserver(obs!!)
+                    viewModel.addSpotToExistingItinerary(itinerary.id, spot)
+                    navigateToItineraryDetail(itinerary)
+                }
+                else -> {}
+            }
+        }
+        viewModel.itineraryDetail.observe(this, obs!!)
     }
 
     // ─── 新增行程 BottomSheet ──────────────────────────────────
