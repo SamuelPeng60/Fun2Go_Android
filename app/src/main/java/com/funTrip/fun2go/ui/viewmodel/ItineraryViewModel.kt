@@ -76,7 +76,7 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
             val result = repository.deleteItinerary(id)
             if (result is NetworkResult.Success && spotIds.isNotEmpty()) {
                 val dao = AppDatabase.getDatabase(getApplication()).savedSpotDao()
-                spotIds.forEach { spotId -> dao.deleteById(spotId) }
+                dao.deleteByIds(spotIds)
             }
             _deleteResult.value = result
         }
@@ -190,7 +190,7 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
                 _initDaysResult.value = NetworkResult.Error(detail.message ?: "")
                 return@launch
             }
-            val days = (detail as NetworkResult.Success).data?.days ?: emptyList()
+            val days = (detail as? NetworkResult.Success)?.data?.days ?: emptyList()
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             val startCal = runCatching {
                 java.util.Calendar.getInstance().also { it.time = sdf.parse(startDate)!! }

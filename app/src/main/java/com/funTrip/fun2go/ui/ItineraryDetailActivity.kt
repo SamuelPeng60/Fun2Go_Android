@@ -272,7 +272,9 @@ class ItineraryDetailActivity : AppCompatActivity() {
         DatePickerDialog(this, { _, year, month, dayOfMonth ->
             val dateStr = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
             viewModel.setDatesAfterCopy(itineraryId, dateStr)
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).apply {
+            setOnCancelListener { datePromptShown = false }
+        }.show()
     }
 
     private fun showDatePickerForDay(itDay: ItineraryDay) {

@@ -15,7 +15,7 @@ object RetrofitClient {
     private const val BASE_URL = "https://v1api.samuelray.net/"
 
     // 由 MainViewModel 初始化後注入
-    var tokenManager: TokenManager? = null
+    @Volatile var tokenManager: TokenManager? = null
 
     // 只用來同步呼叫 refresh endpoint（Authenticator 不能用 coroutine）
     private interface RefreshService {

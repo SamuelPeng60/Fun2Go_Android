@@ -82,13 +82,16 @@ class OrderListActivity : AppCompatActivity() {
             val chip = Chip(this).apply {
                 text = f.label
                 isCheckable = true
-                isChecked = (f.value == null)
-            }
-            chip.setOnClickListener {
-                currentStatusFilter = f.value
-                viewModel.fetchOrders(currentStatusFilter)
+                tag = f.value
             }
             chipGroup.addView(chip)
+        }
+        // 預設勾選「全部」
+        (chipGroup.getChildAt(0) as? Chip)?.isChecked = true
+        chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
+            val checkedId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
+            currentStatusFilter = group.findViewById<Chip>(checkedId).tag as? String
+            viewModel.fetchOrders(currentStatusFilter)
         }
     }
 

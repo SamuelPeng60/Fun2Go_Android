@@ -281,4 +281,20 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
+    <!-- 登入過渡遮罩：防止登入流程中畫面閃爍 -->
+    <FrameLayout
+        android:id="@+id/loginLoadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/white"
+        android:visibility="gone"
+        android:elevation="20dp">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+
+    </FrameLayout>
+
 </FrameLayout>

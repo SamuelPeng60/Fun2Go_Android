@@ -80,11 +80,15 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        // 壓制 Google Sign-In 返回的過渡動畫，讓遮罩直接接管畫面
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
         if (result.resultCode == Activity.RESULT_OK) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(ApiException::class.java)
                 // 立刻儲存 Google 帳號資訊 → isLoggedIn() 立即為 true
+                // 此時遮罩仍蓋住畫面，使用者看不到 header 更新
                 val tempUser = User(
                     id = 0,
                     name = account.displayName ?: account.email ?: "Google 用戶",
@@ -100,8 +104,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     viewModel.loginWithGoogle(idToken, account.photoUrl?.toString())
                 }
             } catch (e: ApiException) {
+                hideLoginOverlay()
                 Toast.makeText(this, getString(R.string.msg_google_login_failed, e.statusCode), Toast.LENGTH_SHORT).show()
             }
+        } else {
+            // 使用者取消選帳號，立即隱藏遮罩
+            hideLoginOverlay()
         }
     }
 
@@ -129,6 +137,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // ─── UI ────────────────────────────────────────────────────
     private lateinit var progressBar: ProgressBar
+    private lateinit var loginLoadingOverlay: android.widget.FrameLayout
     private lateinit var tvWelcome: TextView
     private lateinit var btnNavProfile: ImageButton
     private lateinit var btnRefreshUser: ImageButton
@@ -278,10 +287,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         view.findViewById<TextView>(R.id.tvLoginDesc).text = descText
 
         view.findViewById<MaterialButton>(R.id.btnGoogleSignIn).setOnClickListener {
+            // 先蓋上遮罩再 dismiss，避免 dialog 消失後短暫露出主畫面的閃爍
+            loginLoadingOverlay.alpha = 1f
+            loginLoadingOverlay.visibility = View.VISIBLE
             dialog.dismiss()
             // 先 signOut 確保每次都顯示帳號選擇畫面
             googleSignInClient.signOut().addOnCompleteListener {
                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                // 壓制前進動畫，讓遮罩無縫接上 Google Sign-In 畫面
+                @Suppress("DEPRECATION")
+                overridePendingTransition(0, 0)
             }
         }
 
@@ -303,7 +318,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     // ─── Views 初始化 ──────────────────────────────────────────
 
     private fun initViews() {
-        progressBar    = findViewById(R.id.progressBar)
+        progressBar         = findViewById(R.id.progressBar)
+        loginLoadingOverlay = findViewById(R.id.loginLoadingOverlay)
         tvWelcome      = findViewById(R.id.tvWelcome)
         btnNavProfile  = findViewById(R.id.btnNavProfile)
         btnRefreshUser = findViewById(R.id.btnRefreshUser)
@@ -355,6 +371,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 text = label
                 isCheckable = true
                 isChecked = (key == "all")
+                isCheckedIconVisible = (key == "all")
                 chipCornerRadius = 48f
                 setTextColor(if (key == "all") getColor(android.R.color.white) else getColor(android.R.color.black))
                 setChipBackgroundColorResource(
@@ -367,6 +384,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 for (i in 0 until chipGroup.childCount) {
                     val c = chipGroup.getChildAt(i) as Chip
                     val isSelected = c == chip
+                    c.isCheckedIconVisible = isSelected
                     c.setTextColor(getColor(if (isSelected) android.R.color.white else android.R.color.black))
                     c.setChipBackgroundColorResource(
                         if (isSelected) android.R.color.holo_red_light else android.R.color.white
@@ -584,17 +602,18 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         // Google 登入結果
         viewModel.loginResult.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> showLoading(true)
+                is NetworkResult.Loading -> { /* 遮罩已蓋住，不需額外 showLoading */ }
                 is NetworkResult.Success -> {
-                    showLoading(false)
-                    Toast.makeText(this, getString(R.string.msg_welcome, result.data?.name ?: ""), Toast.LENGTH_SHORT).show()
                     result.data?.id?.takeIf { it > 0 }?.let { userId ->
                         viewModel.fetchUserItineraries(userId)
                         viewModel.fetchUserFavorites(userId)
                     }
+                    // 淡出遮罩，讓使用者看到已更新完成的畫面
+                    hideLoginOverlay()
+                    Toast.makeText(this, getString(R.string.msg_welcome, result.data?.name ?: ""), Toast.LENGTH_SHORT).show()
                 }
                 is NetworkResult.Error -> {
-                    showLoading(false)
+                    hideLoginOverlay()
                     Toast.makeText(this, getString(R.string.msg_login_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
@@ -738,15 +757,21 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
 
+        var hasStarted = false
         val saveObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.User>> { result ->
             when (result) {
-                is NetworkResult.Loading -> btnSave.isEnabled = false
+                is NetworkResult.Loading -> {
+                    hasStarted = true
+                    btnSave.isEnabled = false
+                }
                 is NetworkResult.Success -> {
+                    if (!hasStarted) return@Observer
                     btnSave.isEnabled = true
                     Toast.makeText(this, getString(R.string.msg_profile_saved), Toast.LENGTH_SHORT).show()
                     dialog.dismiss()
                 }
                 is NetworkResult.Error -> {
+                    if (!hasStarted) return@Observer
                     btnSave.isEnabled = true
                     Toast.makeText(this, getString(R.string.msg_profile_save_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
@@ -1268,5 +1293,17 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun showLoading(isLoading: Boolean) {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    private fun hideLoginOverlay() {
+        if (loginLoadingOverlay.visibility != View.VISIBLE) return
+        loginLoadingOverlay.animate()
+            .alpha(0f)
+            .setDuration(250)
+            .withEndAction {
+                loginLoadingOverlay.visibility = View.GONE
+                loginLoadingOverlay.alpha = 1f
+            }
+            .start()
     }
 }
