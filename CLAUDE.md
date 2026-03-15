@@ -374,6 +374,28 @@ sealed class SavedListItem {
 
 ---
 
+### 21. Code Review Bug Fixes + UX 改善（v2.6，2026-03-15）
+
+#### Bug Fixes（Code Review）
+- **`RetrofitClient.tokenManager` 加 `@Volatile`**：tokenManager 同時被 UI thread 與 OkHttp network thread 存取，缺少 `@Volatile` 會造成 data race，導致 401 或舊 token 被使用
+- **`SavedSpotDao` 新增 `deleteByIds(ids: List<Int>)`**：`ItineraryViewModel.deleteItinerary()` 原本用迴圈呼叫 N 次 `deleteById`，改為單一批次 SQL `DELETE WHERE id IN (:ids)`
+- **`ItineraryViewModel.setDatesAfterCopy` unsafe cast 修復**：`(detail as NetworkResult.Success)` 改為 `(detail as? NetworkResult.Success)`，防止非 Error/Success 狀態的 ClassCastException
+- **`ItineraryDetailActivity.datePromptShown` 可重試**：`showStartDatePrompt()` 加入 `setOnCancelListener { datePromptShown = false }`，使用者取消 DatePicker 後下次進入詳情頁仍會再次提示
+- **`OrderListActivity` Chip 狀態管理修復**：各 Chip 的 `setOnClickListener` 改為 `ChipGroup.setOnCheckedStateChangeListener`，用 chip `tag` 儲存 filter value，讓 ChipGroup 統一管理 checked 狀態，避免多 Chip 同時顯示選中
+- **`showProfileBottomSheet` saveObserver sticky event 防護**：加入 `hasStarted` flag，防止開啟個人資料 sheet 時舊的 `updateUserResponse` 快取值立即觸發（dialog 一開就關）
+
+#### UI 改善
+- **分類 Chip 勾勾圖示**：只有選中的 Chip 顯示勾勾（`isCheckedIconVisible`），未選中時隱藏
+- **Google 登入畫面閃爍修復**：
+  - 點擊登入按鈕時立即顯示白色全螢幕遮罩（`loginLoadingOverlay`），遮住 dialog 消失後的短暫主畫面
+  - `googleSignInLauncher.launch()` 後呼叫 `overridePendingTransition(0, 0)` 壓制前進動畫
+  - result callback 頂端呼叫 `overridePendingTransition(0, 0)` 壓制返回動畫
+  - 登入成功/失敗後呼叫 `hideLoginOverlay()`（250ms 淡出），使用者看到已更新完成的畫面
+  - 取消選帳號時立即隱藏遮罩
+  - `loginResult` Loading 狀態不再額外呼叫 `showLoading()`（遮罩已覆蓋）
+
+---
+
 ## 已知待完成功能
 - 無
 
