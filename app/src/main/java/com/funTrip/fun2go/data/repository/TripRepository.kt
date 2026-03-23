@@ -63,8 +63,8 @@ class TripRepository : BaseRepository() {
         api.createUser(UserRequest(name, email))
     }
 
-    suspend fun updateUser(id: Int, name: String, email: String?) = safeApiCall {
-        api.updateUser(id, UserRequest(name, email))
+    suspend fun updateUser(id: Int, name: String, email: String?, avatarUrl: String? = null) = safeApiCall {
+        api.updateUser(id, UserRequest(name, email, avatarUrl))
     }
 
     suspend fun getUserItineraries(userId: Int) = safeApiCall {
@@ -132,6 +132,10 @@ class TripRepository : BaseRepository() {
 
     suspend fun updateSpotInDay(dayId: Int, spotId: Int, request: AddSpotToDayRequest) = safeApiCall {
         api.updateSpotInDay(dayId, spotId, request)
+    }
+
+    suspend fun updateSpotAttributes(dayId: Int, spotId: Int, request: UpdateSpotInDayRequest) = safeApiCall {
+        api.updateSpotAttributes(dayId, spotId, request)
     }
 
     suspend fun removeSpotFromDay(dayId: Int, spotId: Int) = safeApiCall {

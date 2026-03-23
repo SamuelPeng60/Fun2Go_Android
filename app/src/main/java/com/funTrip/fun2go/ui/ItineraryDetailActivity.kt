@@ -1,6 +1,7 @@
 package com.funTrip.fun2go.ui
 
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -20,13 +21,16 @@ import com.funTrip.fun2go.data.local.SavedSpotEntity
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.ItineraryDay
 import com.funTrip.fun2go.data.model.ItinerarySpot
+import com.funTrip.fun2go.data.model.UpdateSpotInDayRequest
 import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.ItineraryDayAdapter
 import com.funTrip.fun2go.ui.adapter.SpotPickerAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.textfield.TextInputEditText
 
 class ItineraryDetailActivity : AppCompatActivity() {
 
@@ -63,7 +67,8 @@ class ItineraryDetailActivity : AppCompatActivity() {
         dayAdapter = ItineraryDayAdapter(
             onAddSpotClick = { day -> showSpotPickerSheet(day) },
             onRemoveSpotClick = { itSpot, dayId -> showRemoveSpotDialog(itSpot, dayId) },
-            onDateClick = { day -> showDatePickerForDay(day) }
+            onDateClick = { day -> showDatePickerForDay(day) },
+            onSpotClick = { itSpot, dayId -> showEditSpotSheet(itSpot, dayId) }
         )
         rvDays.layoutManager = LinearLayoutManager(this)
         rvDays.adapter = dayAdapter
@@ -194,6 +199,17 @@ class ItineraryDetailActivity : AppCompatActivity() {
                 Snackbar.make(toolbar, getString(R.string.msg_reorder_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
         }
 
+        viewModel.updateSpotAttrResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> pbLoading.visibility = View.GONE
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    Snackbar.make(toolbar, getString(R.string.msg_spot_update_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
+                }
+            }
+        }
+
         viewModel.initDaysResult.observe(this) { result ->
             when (result) {
                 is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
@@ -301,6 +317,51 @@ class ItineraryDetailActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.label_cancel), null)
             .show()
+    }
+
+    private fun showEditSpotSheet(itSpot: ItinerarySpot, dayId: Int) {
+        val dialog = BottomSheetDialog(this)
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_edit_itinerary_spot, null)
+
+        val tvTitle       = sheetView.findViewById<TextView>(R.id.tvEditSpotTitle)
+        val etArrival     = sheetView.findViewById<TextInputEditText>(R.id.etArrivalTime)
+        val etDeparture   = sheetView.findViewById<TextInputEditText>(R.id.etDepartureTime)
+        val etDuration    = sheetView.findViewById<TextInputEditText>(R.id.etDurationMinutes)
+        val etNote        = sheetView.findViewById<TextInputEditText>(R.id.etSpotNote)
+        val btnSave       = sheetView.findViewById<MaterialButton>(R.id.btnSaveSpotAttr)
+        val btnCancel     = sheetView.findViewById<MaterialButton>(R.id.btnCancelSpotAttr)
+
+        tvTitle.text = itSpot.spot_detail?.name ?: getString(R.string.title_edit_spot)
+
+        etArrival.setText(itSpot.arrival_time ?: "")
+        etDeparture.setText(itSpot.departure_time ?: "")
+        etDuration.setText(itSpot.duration_minutes?.toString() ?: "")
+        etNote.setText(itSpot.note ?: "")
+
+        fun showTimePicker(field: TextInputEditText) {
+            val cal = Calendar.getInstance()
+            TimePickerDialog(this, { _, hour, minute ->
+                field.setText("%02d:%02d".format(hour, minute))
+            }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
+        }
+        etArrival.setOnClickListener { showTimePicker(etArrival) }
+        etDeparture.setOnClickListener { showTimePicker(etDeparture) }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        btnSave.setOnClickListener {
+            val req = UpdateSpotInDayRequest(
+                arrival_time   = etArrival.text?.toString()?.trim()?.ifEmpty { null },
+                departure_time = etDeparture.text?.toString()?.trim()?.ifEmpty { null },
+                duration_minutes = etDuration.text?.toString()?.trim()?.toIntOrNull(),
+                note           = etNote.text?.toString()?.trim()?.ifEmpty { null }
+            )
+            dialog.dismiss()
+            viewModel.updateItinerarySpot(itineraryId, dayId, itSpot.id, req)
+        }
+
+        dialog.setContentView(sheetView)
+        dialog.show()
     }
 
     private fun showSpotPickerSheet(day: ItineraryDay) {

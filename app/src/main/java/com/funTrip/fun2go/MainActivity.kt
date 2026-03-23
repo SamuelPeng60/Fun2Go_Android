@@ -730,6 +730,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     // ─── 個人資料 BottomSheet ──────────────────────────────────
 
+    private var pendingAvatarUrl: String? = null
+
     private fun showProfileBottomSheet() {
         val user = viewModel.currentUser ?: run {
             Toast.makeText(this, getString(R.string.msg_user_not_loaded), Toast.LENGTH_SHORT).show()
@@ -738,12 +740,16 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_profile, null)
 
-        val ivAvatar = view.findViewById<ImageView>(R.id.ivProfileAvatar)
-        val etName   = view.findViewById<TextInputEditText>(R.id.etProfileName)
-        val etEmail  = view.findViewById<TextInputEditText>(R.id.etProfileEmail)
-        val tvDate   = view.findViewById<TextView>(R.id.tvProfileJoinDate)
-        val btnSave  = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
-        val btnLogout = view.findViewById<MaterialButton>(R.id.btnLogout)
+        val ivAvatar        = view.findViewById<ImageView>(R.id.ivProfileAvatar)
+        val pbAvatarLoading = view.findViewById<android.widget.ProgressBar>(R.id.pbAvatarLoading)
+        val btnPickAvatar   = view.findViewById<MaterialButton>(R.id.btnPickAvatar)
+        val etName        = view.findViewById<TextInputEditText>(R.id.etProfileName)
+        val etEmail       = view.findViewById<TextInputEditText>(R.id.etProfileEmail)
+        val tvDate        = view.findViewById<TextView>(R.id.tvProfileJoinDate)
+        val btnSave       = view.findViewById<MaterialButton>(R.id.btnSaveProfile)
+        val btnLogout     = view.findViewById<MaterialButton>(R.id.btnLogout)
+
+        pendingAvatarUrl = null
 
         etName.setText(user.name)
         etEmail.setText(user.email ?: "")
@@ -752,9 +758,65 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (!user.avatarUrl.isNullOrEmpty()) {
             ivAvatar.load(user.avatarUrl) {
                 transformations(CircleCropTransformation())
-                placeholder(android.R.drawable.sym_def_app_icon)
-                error(android.R.drawable.sym_def_app_icon)
+                error(R.drawable.ic_google_logo)
             }
+        } else {
+            ivAvatar.setImageResource(R.drawable.ic_google_logo)
+        }
+
+        // 頭像上傳 observer（在 sheet 存活期間監聽）
+        var uploadStarted = false
+        val uploadObserver = Observer<NetworkResult<com.funTrip.fun2go.data.model.UploadResponse>> { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    uploadStarted = true
+                    btnPickAvatar.isEnabled = false
+                    ivAvatar.setImageDrawable(null)          // 清除舊圖
+                    pbAvatarLoading.visibility = View.VISIBLE
+                }
+                is NetworkResult.Success -> {
+                    if (!uploadStarted) return@Observer
+                    btnPickAvatar.isEnabled = true
+                    val url = result.data?.url ?: return@Observer
+                    pendingAvatarUrl = url
+                    // spinner 持續到 Coil 下載完圖片才隱藏，避免灰底閃現
+                    ivAvatar.load(url) {
+                        transformations(CircleCropTransformation())
+                        error(R.drawable.ic_google_logo)
+                        listener(
+                            onSuccess = { _, _ -> pbAvatarLoading.visibility = View.GONE },
+                            onError   = { _, _ -> pbAvatarLoading.visibility = View.GONE }
+                        )
+                    }
+                }
+                is NetworkResult.Error -> {
+                    if (!uploadStarted) return@Observer
+                    pbAvatarLoading.visibility = View.GONE
+                    btnPickAvatar.isEnabled = true
+                    // 恢復原頭像
+                    if (!user.avatarUrl.isNullOrEmpty()) {
+                        ivAvatar.load(user.avatarUrl) {
+                            transformations(CircleCropTransformation())
+                            error(R.drawable.ic_google_logo)
+                        }
+                    } else {
+                        ivAvatar.setImageResource(R.drawable.ic_google_logo)
+                    }
+                    Toast.makeText(this, getString(R.string.msg_avatar_upload_failed, result.message ?: ""), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        viewModel.uploadImageResult.observe(this, uploadObserver)
+
+        btnPickAvatar.setOnClickListener {
+            onImagePickedCallback = { uri ->
+                val bytes = contentResolver.openInputStream(uri)?.readBytes()
+                if (bytes != null) {
+                    val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
+                    viewModel.uploadImage("spots", bytes, mimeType)
+                }
+            }
+            imagePickerLauncher.launch("image/*")
         }
 
         var hasStarted = false
@@ -783,7 +845,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             val name  = etName.text?.toString()?.trim() ?: ""
             val email = etEmail.text?.toString()?.trim()
             if (name.isEmpty()) { etName.error = getString(R.string.msg_name_required); return@setOnClickListener }
-            viewModel.updateUser(user.id, name, email)
+            viewModel.updateUser(user.id, name, email, pendingAvatarUrl)
         }
 
         btnLogout.setOnClickListener {
@@ -795,6 +857,8 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         dialog.setOnDismissListener {
             viewModel.updateUserResponse.removeObserver(saveObserver)
+            viewModel.uploadImageResult.removeObserver(uploadObserver)
+            pendingAvatarUrl = null
         }
         dialog.setContentView(view)
         dialog.show()

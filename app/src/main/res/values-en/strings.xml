@@ -219,4 +219,14 @@
     <string name="msg_delete_order_confirm">Cancel this order?</string>
     <string name="format_order_id">Order #%d</string>
     <string name="label_charter_order">Charter Order</string>
+
+    <!-- Itinerary spot editing -->
+    <string name="hint_arrival_time">Arrival Time</string>
+    <string name="hint_departure_time">Departure Time</string>
+    <string name="hint_duration_minutes">Duration (minutes)</string>
+    <string name="hint_spot_note">Note</string>
+
+    <!-- Avatar upload -->
+    <string name="label_pick_avatar">Change Avatar</string>
+    <string name="msg_avatar_upload_failed">Avatar upload failed: %s</string>
 </resources>

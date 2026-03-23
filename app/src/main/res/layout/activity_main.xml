@@ -178,7 +178,8 @@
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_google_logo"
-                android:scaleType="center"
+                android:scaleType="fitCenter"
+                android:padding="10dp"
                 android:contentDescription="個人設定" />
 
         </LinearLayout>

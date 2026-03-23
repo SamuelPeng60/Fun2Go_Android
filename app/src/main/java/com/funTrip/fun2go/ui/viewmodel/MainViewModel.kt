@@ -237,10 +237,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateUser(id: Int, name: String, email: String?) {
+    fun updateUser(id: Int, name: String, email: String?, avatarUrl: String? = null) {
         _updateUserResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
-            val result = repository.updateUser(id, name, email)
+            val result = repository.updateUser(id, name, email, avatarUrl)
             if (result is NetworkResult.Success) {
                 currentUser = result.data
                 result.data?.let { user ->

@@ -34,6 +34,8 @@ data class ItinerarySpot(
     val day_id: Int = 0,
     val order_index: Int = 0,
     val arrival_time: String? = null,
+    val departure_time: String? = null,
+    val duration_minutes: Int? = null,
     val note: String? = null,
     // getItineraryDetail 嵌套回傳 "spot"，舊欄位名稱 "spot_detail" 保留相容
     @SerializedName(value = "spot", alternate = ["spot_detail"]) val spot_detail: Spot? = null

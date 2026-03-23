@@ -17,7 +17,8 @@ import kotlin.math.*
 class ItineraryDayAdapter(
     private val onAddSpotClick: (ItineraryDay) -> Unit = {},
     private val onRemoveSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> },
-    private val onDateClick: (ItineraryDay) -> Unit = {}
+    private val onDateClick: (ItineraryDay) -> Unit = {},
+    private val onSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     sealed class Item {
@@ -194,9 +195,19 @@ class ItineraryDayAdapter(
             tvSpotName.text = itSpot.spot_detail?.name ?: "景點 #${itSpot.spot_id}"
 
             val noteText = buildString {
-                itSpot.arrival_time?.let { append("抵達：$it") }
-                if (!itSpot.arrival_time.isNullOrBlank() && !itSpot.note.isNullOrBlank()) append("　")
-                itSpot.note?.takeIf { it.isNotBlank() }?.let { append(it) }
+                itSpot.arrival_time?.takeIf { it.isNotBlank() }?.let { append("抵達：$it") }
+                itSpot.departure_time?.takeIf { it.isNotBlank() }?.let {
+                    if (isNotEmpty()) append("　")
+                    append("離開：$it")
+                }
+                itSpot.duration_minutes?.let {
+                    if (isNotEmpty()) append("　")
+                    append("${it}分鐘")
+                }
+                itSpot.note?.takeIf { it.isNotBlank() }?.let {
+                    if (isNotEmpty()) append("　")
+                    append(it)
+                }
             }
             if (noteText.isNotBlank()) {
                 tvSpotNote.visibility = View.VISIBLE
@@ -205,6 +216,7 @@ class ItineraryDayAdapter(
                 tvSpotNote.visibility = View.GONE
             }
 
+            itemView.setOnClickListener { onSpotClick(itSpot, item.dayId) }
             btnRemove.setOnClickListener { onRemoveSpotClick(itSpot, item.dayId) }
 
             ivDragHandle.setOnTouchListener { _, event ->

@@ -1,7 +1,7 @@
 package com.funTrip.fun2go.data.model
 
 // 建立/更新 用戶
-data class UserRequest(val name: String, val email: String?)
+data class UserRequest(val name: String, val email: String?, val avatar_url: String? = null)
 
 // 建立/更新 行程
 data class ItineraryRequest(
@@ -16,8 +16,18 @@ data class ItineraryRequest(
 data class AddSpotToDayRequest(
     val spot_id: Int,
     val order_index: Int,
-    val arrival_time: String?,
-    val note: String?
+    val arrival_time: String? = null,
+    val departure_time: String? = null,
+    val duration_minutes: Int? = null,
+    val note: String? = null
+)
+
+// 更新行程景點屬性（不需要 spot_id / order_index）
+data class UpdateSpotInDayRequest(
+    val arrival_time: String? = null,
+    val departure_time: String? = null,
+    val duration_minutes: Int? = null,
+    val note: String? = null
 )
 
 // 收藏

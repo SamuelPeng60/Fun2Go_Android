@@ -9,6 +9,7 @@ import com.funTrip.fun2go.data.local.AppDatabase
 import com.funTrip.fun2go.data.local.SavedSpotEntity
 import com.funTrip.fun2go.data.local.TokenManager
 import com.funTrip.fun2go.data.model.AddSpotToDayRequest
+import com.funTrip.fun2go.data.model.UpdateSpotInDayRequest
 import com.funTrip.fun2go.data.model.Itinerary
 import com.funTrip.fun2go.data.model.UploadResponse
 import com.funTrip.fun2go.data.model.User
@@ -140,6 +141,29 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
             } else {
                 _spotOperationResult.value = NetworkResult.Error(
                     (result as? NetworkResult.Error)?.message ?: "移除景點失敗"
+                )
+            }
+        }
+    }
+
+    private val _updateSpotAttrResult = MutableLiveData<NetworkResult<Unit>>()
+    val updateSpotAttrResult: LiveData<NetworkResult<Unit>> = _updateSpotAttrResult
+
+    fun updateItinerarySpot(
+        itineraryId: Int,
+        dayId: Int,
+        itinerarySpotId: Int,
+        request: UpdateSpotInDayRequest
+    ) {
+        _updateSpotAttrResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            val result = repository.updateSpotAttributes(dayId, itinerarySpotId, request)
+            if (result is NetworkResult.Success) {
+                loadItinerary(itineraryId)
+                _updateSpotAttrResult.value = NetworkResult.Success(Unit)
+            } else {
+                _updateSpotAttrResult.value = NetworkResult.Error(
+                    (result as? NetworkResult.Error)?.message ?: "更新景點失敗"
                 )
             }
         }

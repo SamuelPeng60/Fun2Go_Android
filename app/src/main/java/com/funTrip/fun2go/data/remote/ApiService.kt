@@ -76,6 +76,9 @@ interface ApiService {
     @PUT("api/days/{dayId}/spots/{spotId}")
     suspend fun updateSpotInDay(@Path("dayId") dayId: Int, @Path("spotId") spotId: Int, @Body request: AddSpotToDayRequest): Response<ItinerarySpot>
 
+    @PUT("api/days/{dayId}/spots/{spotId}")
+    suspend fun updateSpotAttributes(@Path("dayId") dayId: Int, @Path("spotId") spotId: Int, @Body request: UpdateSpotInDayRequest): Response<ItinerarySpot>
+
     @DELETE("api/days/{dayId}/spots/{spotId}")
     suspend fun removeSpotFromDay(@Path("dayId") dayId: Int, @Path("spotId") spotId: Int): Response<Unit>
 

@@ -15,23 +15,47 @@
         android:layout_marginBottom="16dp"
         android:background="#DDDDDD" />
 
-    <!-- 頭像 -->
-    <ImageView
-        android:id="@+id/ivProfileAvatar"
+    <!-- 頭像（含上傳中轉圈） -->
+    <FrameLayout
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:layout_gravity="center_horizontal">
+
+        <ImageView
+            android:id="@+id/ivProfileAvatar"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_shape"
+            android:contentDescription="Avatar" />
+
+        <ProgressBar
+            android:id="@+id/pbAvatarLoading"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <!-- 更換頭像按鈕 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnPickAvatar"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:scaleType="centerCrop"
-        android:background="@drawable/circle_shape"
-        android:src="@android:drawable/sym_def_app_icon"
-        android:contentDescription="Avatar" />
+        android:layout_marginTop="8dp"
+        android:text="@string/label_pick_avatar"
+        android:textSize="13sp"
+        android:textColor="#F44062" />
 
     <!-- 標題 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="4dp"
         android:layout_marginBottom="24dp"
         android:text="@string/title_profile"
         android:textSize="18sp"
