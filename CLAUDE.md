@@ -397,7 +397,49 @@ sealed class SavedListItem {
 ---
 
 ## 已知待完成功能
-- 無
+
+對照 iOS spec（`ios-app-spec.md`）整理，以下功能 iOS 已有、Android 尚未實作。
+
+### 優先實作（下次開始）
+
+1. **行程地圖模式（ItineraryMapView）**
+   - 行程詳情頁新增地圖 / 列表切換 Tab
+   - 不同天的景點用不同顏色 Marker 區分，相同天的景點之間畫連線路徑
+   - iOS ref：`EditItineraryView`（`@State showMap` 雙模式）、`ItineraryMapView`
+
+2. **刪除天數**
+   - `ItineraryDetailActivity` 目前只能新增天數，缺刪除功能
+   - 天數 Header 長按或新增刪除按鈕，AlertDialog 二次確認
+   - API：`DELETE /api/itineraries/{id}/days/{dayId}`（`ApiService` 已有 `deleteDay`）
+   - iOS ref：`EditItineraryView` 天數列表 swipe-to-delete
+
+3. **訂單連結行程**
+   - 建立包車訂單時可選填 `itinerary_id`（`CreateOrderRequest.itinerary_id` 已有欄位）
+   - `OrderDetailActivity` / `bottom_sheet_order_detail.xml` 新增「連結行程」區塊，顯示行程標題，可點擊跳至 `ItineraryDetailActivity`
+   - iOS ref：`OrderDetailView` Section「連結行程」，`order.itineraryID != nil` 時顯示
+
+4. **行程連結包車（ItineraryCharterSheet）**
+   - `ItineraryDetailActivity` toolbar / FAB 新增「預約包車」入口
+   - 帶入行程天數與目的地自動預填上下車地點
+   - 流程：選車輛 → 預填表單（`VehicleListActivity` + `showBookingSheet`）→ 確認
+   - iOS ref：`ItineraryCharterSheet`（Phase 1 選車 → Phase 2 預約）
+
+### 次要實作
+
+5. **退款（Refund）**
+   - 訂單狀態 `confirmed` 時顯示「申請退款」按鈕
+   - API：`POST /api/orders/{id}/refund`
+   - iOS ref：`OrderDetailView` confirmed → 「申請退款」red bordered button
+
+6. **其他使用者個人頁（UserProfileView）**
+   - 點擊公開行程作者名稱 → 新 Activity 顯示作者頭像 / 姓名 / email + 其公開行程列表
+   - API：`GET /api/users/{id}`（已有）+ `GET /api/users/{id}/itineraries`（已有）
+   - iOS ref：`UserProfileView`
+
+7. **景點搜尋（SpotSearchView）**
+   - 目前只能透過地圖瀏覽景點；新增關鍵字 + 分類 chips 搜尋入口（地圖頁右上角搜尋按鈕）
+   - API：`GET /api/spots?keyword=&category=`（`ApiService.searchSpots` 已有）
+   - iOS ref：`SpotSearchView`
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤
