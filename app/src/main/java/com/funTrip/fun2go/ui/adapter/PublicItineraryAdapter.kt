@@ -1,7 +1,6 @@
 package com.funTrip.fun2go.ui.adapter
 
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -52,7 +51,6 @@ class PublicItineraryAdapter(
         private val tvTitle: TextView = view.findViewById(R.id.tvTitle)
         private val tvDestination: TextView = view.findViewById(R.id.tvDestination)
         private val tvDayCount: TextView = view.findViewById(R.id.tvDayCount)
-        private val llAuthor: android.widget.LinearLayout = view.findViewById(R.id.llAuthor)
         private val ivAuthorAvatar: ImageView = view.findViewById(R.id.ivAuthorAvatar)
         private val tvAuthor: TextView = view.findViewById(R.id.tvAuthor)
         private val tvCopyCount: TextView = view.findViewById(R.id.tvCopyCount)
@@ -93,14 +91,15 @@ class PublicItineraryAdapter(
             tvAuthor.text = if (!itinerary.authorName.isNullOrEmpty()) "by ${itinerary.authorName}" else ""
             tvAuthor.visibility = if (!itinerary.authorName.isNullOrEmpty()) View.VISIBLE else View.GONE
             if (onAuthorClick != null && !itinerary.authorName.isNullOrEmpty()) {
-                llAuthor.isClickable = true
-                llAuthor.setOnTouchListener { _, event ->
-                    if (event.action == MotionEvent.ACTION_UP) onAuthorClick.invoke(itinerary)
-                    true
-                }
+                tvAuthor.isClickable = true
+                tvAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
+                ivAuthorAvatar.isClickable = true
+                ivAuthorAvatar.setOnClickListener { onAuthorClick.invoke(itinerary) }
             } else {
-                llAuthor.isClickable = false
-                llAuthor.setOnTouchListener(null)
+                tvAuthor.isClickable = false
+                tvAuthor.setOnClickListener(null)
+                ivAuthorAvatar.isClickable = false
+                ivAuthorAvatar.setOnClickListener(null)
             }
 
             tvCopyCount.text = if (itinerary.copy_count > 0)
