@@ -278,6 +278,23 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // ─── User Profile (used by UserProfileActivity) ───────────────────────
+    private val _viewedUser = MutableLiveData<NetworkResult<com.funTrip.fun2go.data.model.User>>()
+    val viewedUser: LiveData<NetworkResult<com.funTrip.fun2go.data.model.User>> = _viewedUser
+
+    private val _viewedUserItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
+    val viewedUserItineraries: LiveData<NetworkResult<List<Itinerary>>> = _viewedUserItineraries
+
+    fun fetchUserProfile(userId: Int) {
+        _viewedUser.value = NetworkResult.Loading()
+        viewModelScope.launch { _viewedUser.value = repository.getUser(userId) }
+    }
+
+    fun fetchViewedUserItineraries(userId: Int) {
+        _viewedUserItineraries.value = NetworkResult.Loading()
+        viewModelScope.launch { _viewedUserItineraries.value = repository.getUserItineraries(userId) }
+    }
+
     // ─── User Itinerary List (used by ItineraryListActivity) ──────────────
     private val _userItineraries = MutableLiveData<NetworkResult<List<Itinerary>>>()
     val userItineraries: LiveData<NetworkResult<List<Itinerary>>> = _userItineraries

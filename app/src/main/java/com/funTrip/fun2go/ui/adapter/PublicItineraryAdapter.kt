@@ -15,7 +15,8 @@ import com.google.android.material.button.MaterialButton
 
 class PublicItineraryAdapter(
     private val onItemClick: (Itinerary) -> Unit,
-    private val onCopyClick: (Itinerary) -> Unit
+    private val onCopyClick: (Itinerary) -> Unit,
+    private val onAuthorClick: ((Itinerary) -> Unit)? = null
 ) : RecyclerView.Adapter<PublicItineraryAdapter.ViewHolder>() {
 
     private var items: List<Itinerary> = emptyList()
@@ -89,6 +90,11 @@ class PublicItineraryAdapter(
 
             tvAuthor.text = if (!itinerary.authorName.isNullOrEmpty()) "by ${itinerary.authorName}" else ""
             tvAuthor.visibility = if (!itinerary.authorName.isNullOrEmpty()) View.VISIBLE else View.GONE
+            if (onAuthorClick != null && itinerary.author_id > 0) {
+                tvAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
+            } else {
+                tvAuthor.setOnClickListener(null)
+            }
 
             tvCopyCount.text = if (itinerary.copy_count > 0)
                 ctx.getString(R.string.format_copy_count, itinerary.copy_count) else ""

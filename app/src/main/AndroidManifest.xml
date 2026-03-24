@@ -59,6 +59,12 @@
             android:label="探索行程"
             android:theme="@style/Theme.Fun2Go"
             android:parentActivityName=".ui.MainActivity" />
+
+        <activity
+            android:name=".ui.UserProfileActivity"
+            android:label="@string/title_user_profile"
+            android:theme="@style/Theme.Fun2Go"
+            android:parentActivityName=".ui.PublicItineraryListActivity" />
     </application>
 
 </manifest>

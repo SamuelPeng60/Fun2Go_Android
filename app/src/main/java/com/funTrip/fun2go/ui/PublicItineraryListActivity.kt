@@ -70,6 +70,11 @@ class PublicItineraryListActivity : AppCompatActivity() {
                 } else {
                     showCopyDatePicker(itinerary)
                 }
+            },
+            onAuthorClick = { itinerary ->
+                startActivity(Intent(this, UserProfileActivity::class.java).apply {
+                    putExtra("user_id", itinerary.author_id)
+                })
             }
         )
         rvPublicItineraries.layoutManager = LinearLayoutManager(this)

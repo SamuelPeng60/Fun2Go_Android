@@ -172,6 +172,8 @@
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">My Itineraries</string>
     <string name="label_public_itineraries">Public Itineraries</string>
+    <string name="title_user_profile">User Profile</string>
+    <string name="empty_user_itineraries">No public itineraries from this user</string>
     <string name="empty_public_itin">No public itineraries</string>
     <string name="msg_itinerary_copied">Itinerary Copied!</string>
     <string name="title_copy_success">Copy Successful</string>

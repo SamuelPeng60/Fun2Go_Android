@@ -201,6 +201,8 @@
     <!-- ── 探索行程 ─────────────────────────────────────── -->
     <string name="title_explore">探索行程</string>
     <string name="label_public_itineraries">公開行程</string>
+    <string name="title_user_profile">個人頁面</string>
+    <string name="empty_user_itineraries">此用戶尚無公開行程</string>
     <string name="empty_public_itin">目前沒有公開行程</string>
     <string name="msg_itinerary_copied">行程已複製！</string>
     <string name="title_copy_success">複製成功</string>
