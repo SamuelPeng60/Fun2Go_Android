@@ -396,29 +396,36 @@ sealed class SavedListItem {
 
 ---
 
+---
+
+### 22. 其他用戶個人頁 + 首頁 Panel 作者點擊（v2.9，2026-03-24）
+
+#### 其他用戶個人頁（Feature 6）
+- **新增 `UserProfileActivity`**：接收 `user_id`（Intent extra），顯示頭像（Coil + CircleCropTransformation）、姓名、Email、其公開行程列表
+- **`ItineraryViewModel`** 新增：`_viewedUser` / `viewedUser` LiveData + `fetchUserProfile(userId)`；`_viewedUserItineraries` / `viewedUserItineraries` LiveData + `fetchViewedUserItineraries(userId)`
+- **`PublicItineraryAdapter`** 新增 `onAuthorClick: ((Itinerary) -> Unit)? = null` 參數；`tvAuthor` 改 `layout_width="0dp"` + `layout_weight="1"` 佔滿整行 + `paddingTop/Bottom="8dp"`，管理 `isClickable` 避免 RecyclerView 複用殘留
+- **`PublicItineraryListActivity`** 傳入 `onAuthorClick` → 開啟 `UserProfileActivity(user_id)`
+- **`AndroidManifest`** 新增 `UserProfileActivity`（parent = `PublicItineraryListActivity`）
+- 新增布局：`activity_user_profile.xml`（toolbar + 頭像 + 姓名 / email + 公開行程 RecyclerView）
+- 補齊 i18n：`title_user_profile`、`empty_user_itineraries`（中英文）
+- **`Itinerary.author_id`**：`@SerializedName` 加 `alternate = ["author_id"]`，相容公開行程 API 回傳欄位名不一致的情況
+
+#### Bug Fix：首頁 Panel 作者點擊（v2.9）
+- **根本原因**：用戶測試的是首頁底部 Panel（`PublicItineraryPanelAdapter`），不是 `PublicItineraryListActivity`（目前無導航入口），PanelAdapter 完全沒有 author click 支援
+- **`PublicItineraryPanelAdapter`** 新增 `onAuthorClick` 參數；`tvAuthor` 設 `isClickable` + `setOnClickListener`；無 author 時明確設 `isClickable = false` 防止消耗 touch 阻礙 card click
+- **`item_public_itinerary_panel.xml`** `tvAuthor` 加 `paddingTop/Bottom="8dp"` + `paddingStart="4dp"` + `android:clickable="true"` / `focusable="true"` 擴大觸控面積
+- **`MainActivity`** 傳入 `onAuthorClick` → `UserProfileActivity`
+- **注意**：`PublicItineraryListActivity` 目前在 app 內無導航入口（import 存在但未呼叫），用戶看到的公開行程皆來自首頁 Panel
+
+---
+
 ## 已知待完成功能
 
 對照 iOS spec（`ios-app-spec.md`）整理，以下功能 iOS 已有、Android 尚未實作。
 
 ### 優先實作（下次開始）
 
-1. **行程地圖模式（ItineraryMapView）**
-   - 行程詳情頁新增地圖 / 列表切換 Tab
-   - 不同天的景點用不同顏色 Marker 區分，相同天的景點之間畫連線路徑
-   - iOS ref：`EditItineraryView`（`@State showMap` 雙模式）、`ItineraryMapView`
-
-2. **刪除天數**
-   - `ItineraryDetailActivity` 目前只能新增天數，缺刪除功能
-   - 天數 Header 長按或新增刪除按鈕，AlertDialog 二次確認
-   - API：`DELETE /api/itineraries/{id}/days/{dayId}`（`ApiService` 已有 `deleteDay`）
-   - iOS ref：`EditItineraryView` 天數列表 swipe-to-delete
-
-3. **訂單連結行程**
-   - 建立包車訂單時可選填 `itinerary_id`（`CreateOrderRequest.itinerary_id` 已有欄位）
-   - `OrderDetailActivity` / `bottom_sheet_order_detail.xml` 新增「連結行程」區塊，顯示行程標題，可點擊跳至 `ItineraryDetailActivity`
-   - iOS ref：`OrderDetailView` Section「連結行程」，`order.itineraryID != nil` 時顯示
-
-4. **行程連結包車（ItineraryCharterSheet）**
+1. **行程連結包車（ItineraryCharterSheet）**
    - `ItineraryDetailActivity` toolbar / FAB 新增「預約包車」入口
    - 帶入行程天數與目的地自動預填上下車地點
    - 流程：選車輛 → 預填表單（`VehicleListActivity` + `showBookingSheet`）→ 確認
@@ -426,20 +433,14 @@ sealed class SavedListItem {
 
 ### 次要實作
 
-5. **退款（Refund）**
+2. **退款（Refund）**
    - 訂單狀態 `confirmed` 時顯示「申請退款」按鈕
    - API：`POST /api/orders/{id}/refund`
    - iOS ref：`OrderDetailView` confirmed → 「申請退款」red bordered button
 
-6. **其他使用者個人頁（UserProfileView）**
-   - 點擊公開行程作者名稱 → 新 Activity 顯示作者頭像 / 姓名 / email + 其公開行程列表
-   - API：`GET /api/users/{id}`（已有）+ `GET /api/users/{id}/itineraries`（已有）
-   - iOS ref：`UserProfileView`
-
-7. **景點搜尋（SpotSearchView）**
-   - 目前只能透過地圖瀏覽景點；新增關鍵字 + 分類 chips 搜尋入口（地圖頁右上角搜尋按鈕）
-   - API：`GET /api/spots?keyword=&category=`（`ApiService.searchSpots` 已有）
-   - iOS ref：`SpotSearchView`
+3. **PublicItineraryListActivity 入口**
+   - 目前無法從 app 導航到 `PublicItineraryListActivity`（Activity 存在但未連接）
+   - 建議：首頁 Panel 標題列「公開行程」旁加「查看全部」→ `PublicItineraryListActivity`
 
 ## 已知 API 注意事項
 - `POST /api/itineraries/{id}/days` 必須帶 `{ "day_number": N }` body，否則後端報 destructure 錯誤
