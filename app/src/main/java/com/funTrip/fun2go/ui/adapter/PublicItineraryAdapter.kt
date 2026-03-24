@@ -91,7 +91,7 @@ class PublicItineraryAdapter(
 
             tvAuthor.text = if (!itinerary.authorName.isNullOrEmpty()) "by ${itinerary.authorName}" else ""
             tvAuthor.visibility = if (!itinerary.authorName.isNullOrEmpty()) View.VISIBLE else View.GONE
-            if (onAuthorClick != null && itinerary.author_id > 0) {
+            if (onAuthorClick != null && !itinerary.authorName.isNullOrEmpty()) {
                 llAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
             } else {
                 llAuthor.setOnClickListener(null)

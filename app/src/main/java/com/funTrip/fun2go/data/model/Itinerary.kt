@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class Itinerary(
     val id: Int,
     val title: String,
-    @SerializedName("user_id") val author_id: Int = 0,
+    @SerializedName(value = "user_id", alternate = ["author_id"]) val author_id: Int = 0,
     val destination: String? = null,
     val total_days: Int = 1,
     val copy_count: Int = 0,
