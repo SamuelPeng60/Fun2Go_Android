@@ -51,6 +51,7 @@ class PublicItineraryAdapter(
         private val tvTitle: TextView = view.findViewById(R.id.tvTitle)
         private val tvDestination: TextView = view.findViewById(R.id.tvDestination)
         private val tvDayCount: TextView = view.findViewById(R.id.tvDayCount)
+        private val llAuthor: android.widget.LinearLayout = view.findViewById(R.id.llAuthor)
         private val ivAuthorAvatar: ImageView = view.findViewById(R.id.ivAuthorAvatar)
         private val tvAuthor: TextView = view.findViewById(R.id.tvAuthor)
         private val tvCopyCount: TextView = view.findViewById(R.id.tvCopyCount)
@@ -91,9 +92,9 @@ class PublicItineraryAdapter(
             tvAuthor.text = if (!itinerary.authorName.isNullOrEmpty()) "by ${itinerary.authorName}" else ""
             tvAuthor.visibility = if (!itinerary.authorName.isNullOrEmpty()) View.VISIBLE else View.GONE
             if (onAuthorClick != null && itinerary.author_id > 0) {
-                tvAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
+                llAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
             } else {
-                tvAuthor.setOnClickListener(null)
+                llAuthor.setOnClickListener(null)
             }
 
             tvCopyCount.text = if (itinerary.copy_count > 0)
