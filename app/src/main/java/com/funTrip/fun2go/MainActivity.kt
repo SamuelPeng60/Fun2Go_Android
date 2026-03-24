@@ -329,6 +329,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         btnRefreshUser = findViewById(R.id.btnRefreshUser)
         chipGroup      = findViewById(R.id.chipGroup)
 
+        findViewById<ImageButton>(R.id.btnSearch).setOnClickListener {
+            showSpotSearchSheet()
+        }
+
         btnNavProfile.setOnClickListener {
             if (viewModel.isLoggedIn) {
                 showProfileBottomSheet()
@@ -969,6 +973,89 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             }
         }
         viewModel.itineraryDetail.observe(this, obs!!)
+    }
+
+    // ─── 景點搜尋 BottomSheet ──────────────────────────────────
+
+    private fun showSpotSearchSheet() {
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_spot_search, null)
+        dialog.setContentView(view)
+
+        val etKeyword    = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etSearchKeyword)
+        val chipGroup    = view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chipGroupCategory)
+        val rvResults    = view.findViewById<RecyclerView>(R.id.rvSearchResults)
+        val tvEmpty      = view.findViewById<TextView>(R.id.tvSearchEmpty)
+
+        // 分類 Chips
+        val categories = listOf(
+            null to getString(R.string.category_all),
+            "attraction" to getString(R.string.category_attraction),
+            "restaurant" to getString(R.string.category_restaurant),
+            "night_market" to getString(R.string.category_night_market),
+            "shopping" to getString(R.string.category_shopping),
+            "cafe" to getString(R.string.category_cafe)
+        )
+        var selectedCategory: String? = null
+        categories.forEach { (value, label) ->
+            val chip = Chip(this).apply {
+                text = label
+                isCheckable = true
+                isChecked = (value == null)
+                tag = value
+            }
+            chip.setOnClickListener {
+                selectedCategory = chip.tag as? String
+                doSearch(etKeyword.text?.toString(), selectedCategory)
+            }
+            chipGroup.addView(chip)
+        }
+
+        // 搜尋結果 Adapter
+        val adapter = com.funTrip.fun2go.ui.adapter.SpotSearchAdapter { spot ->
+            dialog.dismiss()
+            showSpotBottomSheet(spot)
+        }
+        rvResults.layoutManager = LinearLayoutManager(this)
+        rvResults.adapter = adapter
+
+        // 監聽搜尋結果
+        val searchObserver = androidx.lifecycle.Observer<com.funTrip.fun2go.data.remote.NetworkResult<List<com.funTrip.fun2go.data.model.Spot>>> { result ->
+            when (result) {
+                is com.funTrip.fun2go.data.remote.NetworkResult.Success -> {
+                    val list = result.data ?: emptyList()
+                    adapter.submitList(list)
+                    tvEmpty.visibility   = if (list.isEmpty()) View.VISIBLE else View.GONE
+                    rvResults.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+                }
+                is com.funTrip.fun2go.data.remote.NetworkResult.Error -> {
+                    tvEmpty.visibility   = View.VISIBLE
+                    rvResults.visibility = View.GONE
+                }
+                else -> {}
+            }
+        }
+        viewModel.searchSpotsResult.observe(this, searchObserver)
+        dialog.setOnDismissListener { viewModel.searchSpotsResult.removeObserver(searchObserver) }
+
+        // 文字輸入觸發搜尋
+        etKeyword.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                doSearch(s?.toString(), selectedCategory)
+            }
+        })
+
+        // 初始載入（無關鍵字，顯示全部）
+        doSearch(null, null)
+
+        dialog.show()
+    }
+
+    private fun doSearch(keyword: String?, category: String?) {
+        val kw = keyword?.trim()?.takeIf { it.isNotEmpty() }
+        viewModel.searchSpotsInSheet(kw, category)
     }
 
     // ─── 新增行程 BottomSheet ──────────────────────────────────

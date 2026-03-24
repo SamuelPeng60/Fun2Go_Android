@@ -1,9 +1,11 @@
 package com.funTrip.fun2go.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -230,6 +232,25 @@ class OrderListActivity : AppCompatActivity() {
             "NT$ ${order.totalAmount}"
         }
         view.findViewById<TextView>(R.id.tvDetailAmount).text = getString(R.string.format_total_amount, amountText)
+
+        // 連結行程
+        val layoutLinkedItinerary = view.findViewById<LinearLayout>(R.id.layoutLinkedItinerary)
+        val tvLinkedItinerary     = view.findViewById<TextView>(R.id.tvLinkedItinerary)
+        if (order.itineraryId != null) {
+            layoutLinkedItinerary.visibility = View.VISIBLE
+            tvLinkedItinerary.text = getString(R.string.format_itin_link, order.itineraryId)
+            tvLinkedItinerary.setOnClickListener {
+                sheet.dismiss()
+                startActivity(
+                    Intent(this, ItineraryDetailActivity::class.java).apply {
+                        putExtra("itinerary_id", order.itineraryId)
+                        putExtra("itinerary_title", getString(R.string.format_itin_link, order.itineraryId))
+                    }
+                )
+            }
+        } else {
+            layoutLinkedItinerary.visibility = View.GONE
+        }
 
         // 按鈕
         val pbDetailAction = view.findViewById<ProgressBar>(R.id.pbDetailAction)

@@ -157,6 +157,40 @@
             android:layout_marginTop="12dp"
             android:background="#EEEEEE" />
 
+        <!-- 連結行程 -->
+        <LinearLayout
+            android:id="@+id/layoutLinkedItinerary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="12dp"
+                android:layout_marginTop="12dp"
+                android:background="#EEEEEE" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/label_linked_itinerary"
+                android:textColor="#555555"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvLinkedItinerary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="#F44062"
+                android:textSize="14sp"
+                android:drawableEnd="@drawable/ic_chevron_right" />
+
+        </LinearLayout>
+
         <!-- 總金額 -->
         <TextView
             android:id="@+id/tvDetailAmount"

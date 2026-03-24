@@ -24,6 +24,15 @@
     <string name="tab_map_view">Map</string>
     <string name="label_add_spot">Add Spot</string>
     <string name="msg_login_to_add_spot">Please log in to add a spot</string>
+    <string name="title_delete_day">Delete Day</string>
+    <string name="msg_delete_day_confirm">Delete Day %d? All spots in this day will be removed.</string>
+    <string name="msg_day_deleted">Day deleted</string>
+    <string name="msg_delete_day_failed">Delete failed: %s</string>
+    <string name="label_linked_itinerary">Linked Itinerary</string>
+    <string name="format_itin_link">Itinerary #%d</string>
+    <string name="title_search_spots">Search Spots</string>
+    <string name="hint_search_spots">Enter spot name or address</string>
+    <string name="empty_search_results">No spots found</string>
     <string name="format_travel_min">~%d min</string>
     <string name="format_travel_hm">~%dh %dm</string>
 

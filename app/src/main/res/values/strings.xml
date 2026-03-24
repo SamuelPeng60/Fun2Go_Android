@@ -53,6 +53,15 @@
     <string name="tab_map_view">地圖</string>
     <string name="label_add_spot">新增景點</string>
     <string name="msg_login_to_add_spot">請先登入以新增景點</string>
+    <string name="title_delete_day">刪除天數</string>
+    <string name="msg_delete_day_confirm">確定要刪除第 %d 天嗎？此天所有景點也會一併移除。</string>
+    <string name="msg_day_deleted">天數已刪除</string>
+    <string name="msg_delete_day_failed">刪除失敗：%s</string>
+    <string name="label_linked_itinerary">連結行程</string>
+    <string name="format_itin_link">行程 #%d</string>
+    <string name="title_search_spots">景點搜尋</string>
+    <string name="hint_search_spots">輸入景點名稱或地址</string>
+    <string name="empty_search_results">找不到符合的景點</string>
     <string name="format_travel_min">約 %d 分鐘</string>
     <string name="format_travel_hm">約 %dh %dm</string>
 

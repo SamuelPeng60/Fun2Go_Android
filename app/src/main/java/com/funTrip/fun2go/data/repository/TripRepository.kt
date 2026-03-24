@@ -31,8 +31,8 @@ class TripRepository : BaseRepository() {
     }
 
     // 搜尋景點
-    suspend fun searchSpots(keyword: String) = safeApiCall {
-        api.searchSpots(keyword = keyword)
+    suspend fun searchSpots(keyword: String? = null, category: String? = null) = safeApiCall {
+        api.searchSpots(keyword = keyword, category = category)
     }
 
     // 取得公開行程列表

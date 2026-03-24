@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fun2Go — 旅遊行程規劃</title>
+  <style>
+    /* ===== VARIABLES ===== */
+    :root {
+      --primary: #F44062;
+      --primary-dark: #D6294D;
+      --primary-light: #FF8FA3;
+      --on-primary: #fff;
+      --bg: #F5F5F5;
+      --surface: #FFFFFF;
+      --text: #212121;
+      --text-sec: #757575;
+      --divider: #E0E0E0;
+      --success: #4CAF50;
+      --warning: #FF9800;
+      --error: #F44336;
+      --header-h: 56px;
+      --nav-h: 64px;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,.12);
+      --shadow-heavy: 0 8px 32px rgba(0,0,0,.18);
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100dvh; overflow: hidden; }
+    img { display: block; object-fit: cover; }
+    button { cursor: pointer; border: none; background: none; font-family: inherit; font-size: inherit; }
+    input, select, textarea { font-family: inherit; font-size: 14px; }
+    a { color: var(--primary); text-decoration: none; }
+    ul { list-style: none; }
+
+    /* ===== LAYOUT ===== */
+    #app-header {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; z-index: 200; box-shadow: var(--shadow);
+    }
+    .logo { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+    .logo span { opacity: .75; font-weight: 400; font-size: 14px; margin-left: 4px; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+
+    #app-main {
+      position: fixed; top: var(--header-h); left: 0; right: 0;
+      bottom: var(--nav-h); overflow: hidden;
+    }
+
+    /* ===== PAGES ===== */
+    .page {
+      position: absolute; inset: 0;
+      display: none; flex-direction: column; overflow: hidden;
+    }
+    .page.active { display: flex; }
+
+    /* ===== BOTTOM NAV ===== */
+    #bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h);
+      background: #fff; display: flex; border-top: 1px solid var(--divider);
+      z-index: 200;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
+      color: #AAAAAA; transition: color .2s;
+    }
+    .nav-item.active { color: var(--primary); }
+    .nav-icon { font-size: 22px; line-height: 1; }
+    .nav-label { font-size: 11px; font-weight: 500; }
+
+    /* ===== PAGE TOOLBAR ===== */
+    .page-toolbar {
+      padding: 14px 16px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-bottom: 1px solid var(--divider);
+      flex-shrink: 0;
+    }
+    .page-toolbar h1 { font-size: 20px; font-weight: 700; }
+
+    /* ===== SCROLLABLE CONTENT ===== */
+    .scroll-content {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 12px; display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* ===== MAP PAGE ===== */
+    #page-map { position: relative; }
+    .chips-bar {
+      display: flex; gap: 8px; padding: 10px 12px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      flex-shrink: 0; background: #fff;
+      border-bottom: 1px solid var(--divider);
+      scrollbar-width: none;
+    }
+    .chips-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 500; border: 1.5px solid var(--divider);
+      background: #fff; color: var(--text-sec); transition: all .2s;
+    }
+    .chip.active {
+      background: var(--primary); border-color: var(--primary);
+      color: #fff;
+    }
+    #map-container {
+      flex: 1; background: #e8e8e8;
+      position: relative;
+    }
+    #gmap { width: 100%; height: 100%; }
+
+    /* ===== EXPLORE PAGE ===== */
+    .card-grid {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 12px; display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .card-cover {
+      width: 100%; height: 160px; background: var(--divider);
+      object-fit: cover;
+    }
+    .card-cover-placeholder {
+      width: 100%; height: 160px; background: linear-gradient(135deg,#f0f0f0,#e0e0e0);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+    }
+    .card-body { padding: 12px; }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .card-meta { font-size: 13px; color: var(--text-sec); display: flex; gap: 10px; flex-wrap: wrap; }
+    .card-footer {
+      padding: 8px 12px; border-top: 1px solid var(--divider);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-author { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sec); }
+    .avatar-sm {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--divider);
+      object-fit: cover; flex-shrink: 0;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn-primary {
+      background: var(--primary); color: #fff; border-radius: 24px;
+      padding: 10px 24px; font-size: 14px; font-weight: 600;
+      transition: background .2s; border: none;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      background: #fff; color: var(--primary); border: 1.5px solid var(--primary);
+      border-radius: 24px; padding: 8px 20px; font-size: 13px; font-weight: 600;
+    }
+    .btn-outline {
+      background: transparent; border: 1.5px solid var(--divider);
+      border-radius: 24px; padding: 8px 16px; font-size: 13px; color: var(--text);
+    }
+    .btn-danger {
+      background: var(--error); color: #fff; border-radius: 24px;
+      padding: 10px 20px; font-size: 14px; font-weight: 600;
+    }
+    .btn-text { color: var(--primary); font-size: 13px; font-weight: 600; padding: 4px 8px; }
+    .btn-icon {
+      width: 36px; height: 36px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center;
+      background: var(--bg); font-size: 16px;
+    }
+
+    /* ===== LOGIN BUTTON ===== */
+    #btn-login {
+      background: rgba(255,255,255,.2); color: #fff;
+      border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+      border: 1.5px solid rgba(255,255,255,.5);
+    }
+    #header-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.7); cursor: pointer; object-fit: cover;
+    }
+
+    /* ===== MODALS ===== */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 300; display: none; opacity: 0; transition: opacity .25s;
+    }
+    .overlay.show { display: block; opacity: 1; }
+
+    .modal {
+      position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 400;
+      display: none; align-items: flex-end; pointer-events: none;
+    }
+    .modal.show { display: flex; }
+    .modal.center { align-items: center; justify-content: center; }
+
+    .modal-sheet {
+      width: 100%; max-height: 90dvh;
+      background: #fff; border-radius: 20px 20px 0 0;
+      box-shadow: var(--shadow-heavy); pointer-events: all;
+      display: flex; flex-direction: column;
+      transform: translateY(100%); transition: transform .3s ease;
+    }
+    .modal.show .modal-sheet { transform: translateY(0); }
+    .modal.center .modal-sheet {
+      border-radius: var(--radius); max-width: 480px; width: 90%;
+      transform: scale(.9); opacity: 0; transition: transform .25s, opacity .25s;
+      max-height: 85dvh;
+    }
+    .modal.center.show .modal-sheet { transform: scale(1); opacity: 1; }
+
+    .modal-handle {
+      width: 40px; height: 4px; border-radius: 2px; background: var(--divider);
+      margin: 10px auto 0; flex-shrink: 0;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 10px; border-bottom: 1px solid var(--divider);
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg); font-size: 18px; color: var(--text-sec);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 16px; flex: 1;
+    }
+    .modal-footer {
+      padding: 12px 16px; border-top: 1px solid var(--divider);
+      display: flex; gap: 10px; flex-shrink: 0;
+    }
+    .modal-footer .btn-primary { flex: 1; text-align: center; }
+
+    /* ===== SPOT PANEL ===== */
+    #spot-panel {
+      position: fixed; bottom: calc(var(--nav-h) + 8px); left: 8px; right: 8px;
+      z-index: 250; background: #fff; border-radius: var(--radius);
+      box-shadow: var(--shadow-heavy); display: none;
+      transform: translateY(calc(100% + 20px)); transition: transform .3s ease;
+    }
+    #spot-panel.show { display: block; transform: translateY(0); }
+
+    .spot-panel-img {
+      width: 100%; height: 140px; object-fit: cover;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .spot-panel-placeholder {
+      width: 100%; height: 140px;
+      background: linear-gradient(135deg,#ffe0e6,#ffc8d3);
+      border-radius: var(--radius) var(--radius) 0 0;
+      display: flex; align-items: center; justify-content: center; font-size: 48px;
+    }
+    .spot-panel-body { padding: 12px; }
+    .spot-panel-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .spot-panel-addr { font-size: 13px; color: var(--text-sec); margin-bottom: 10px; }
+    .spot-panel-actions { display: flex; gap: 8px; align-items: center; }
+    .spot-panel-close {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,.5); color: #fff; border-radius: 50%;
+      width: 30px; height: 30px; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-primary { background: #FFE0E6; color: var(--primary); }
+    .badge-success { background: #E8F5E9; color: var(--success); }
+    .badge-warning { background: #FFF3E0; color: var(--warning); }
+    .badge-error { background: #FFEBEE; color: var(--error); }
+    .badge-neutral { background: var(--bg); color: var(--text-sec); }
+
+    /* ===== FORMS ===== */
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--text-sec); }
+    .form-input {
+      width: 100%; border: 1.5px solid var(--divider); border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .2s;
+    }
+    .form-input:focus { border-color: var(--primary); }
+    .form-select {
+      width: 100%; border: 1.5px solid var(--divider); border-radius: 8px;
+      padding: 10px 12px; font-size: 14px; outline: none;
+      background: #fff; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23757575' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+    }
+    .form-hint { font-size: 12px; color: var(--text-sec); margin-top: 4px; }
+
+    /* ===== PROFILE PAGE ===== */
+    #page-profile .scroll-content { padding: 0; }
+    .profile-hero {
+      background: var(--primary); color: #fff;
+      padding: 24px 16px; display: flex; align-items: center; gap: 16px;
+    }
+    .profile-avatar-lg {
+      width: 72px; height: 72px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.6); object-fit: cover;
+    }
+    .profile-avatar-placeholder {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(255,255,255,.2); display: flex;
+      align-items: center; justify-content: center; font-size: 32px;
+    }
+    .profile-info h2 { font-size: 20px; font-weight: 700; }
+    .profile-info p { font-size: 13px; opacity: .8; margin-top: 2px; }
+    .profile-edit-btn {
+      margin-left: auto; background: rgba(255,255,255,.2);
+      border: 1.5px solid rgba(255,255,255,.5); color: #fff;
+      border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+    }
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 8px;
+    }
+    .section-title { font-size: 16px; font-weight: 700; }
+
+    /* ===== ITINERARY ITEMS ===== */
+    .itin-item {
+      background: #fff; margin: 0 12px 10px; border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .itin-item-body { padding: 12px; }
+    .itin-item-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .itin-item-meta { font-size: 12px; color: var(--text-sec); }
+    .itin-item-actions { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--divider); justify-content: flex-end; }
+
+    /* ===== ITINERARY DETAIL ===== */
+    .day-block { margin-bottom: 16px; }
+    .day-header {
+      font-size: 14px; font-weight: 700; color: var(--primary);
+      padding: 8px 0; border-bottom: 2px solid var(--primary);
+      margin-bottom: 8px;
+    }
+    .spot-entry {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid var(--divider);
+    }
+    .spot-entry:last-child { border-bottom: none; }
+    .spot-order-badge {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--primary);
+      color: #fff; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .spot-entry-info { flex: 1; min-width: 0; }
+    .spot-entry-name { font-size: 14px; font-weight: 600; }
+    .spot-entry-addr { font-size: 12px; color: var(--text-sec); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ===== VEHICLE CARD ===== */
+    .vehicle-card { cursor: pointer; }
+    .vehicle-card:active { transform: scale(.98); }
+    .vehicle-badge-unavail {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(244,67,54,.85); color: #fff;
+      border-radius: 8px; padding: 3px 8px; font-size: 11px; font-weight: 600;
+    }
+    .vehicle-card-inner { position: relative; }
+
+    /* ===== ORDER ITEMS ===== */
+    .order-item { padding: 12px; }
+    .order-item + .order-item { border-top: 1px solid var(--divider); }
+    .order-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .order-title { font-size: 14px; font-weight: 700; }
+    .order-amount { font-size: 15px; font-weight: 800; color: var(--primary); }
+    .order-meta { font-size: 12px; color: var(--text-sec); }
+
+    /* ===== EMPTY / LOADING ===== */
+    .empty-state {
+      text-align: center; padding: 48px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .empty-icon { font-size: 56px; }
+    .empty-state h2 { font-size: 18px; font-weight: 700; }
+    .empty-state p { font-size: 14px; color: var(--text-sec); }
+
+    .loading-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid var(--divider); border-top-color: var(--primary);
+      animation: spin .8s linear infinite; margin: 40px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed; bottom: calc(var(--nav-h) + 16px); left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #323232; color: #fff; border-radius: 8px;
+      padding: 10px 20px; font-size: 14px; z-index: 600;
+      max-width: 90vw; text-align: center;
+      transition: transform .3s, opacity .3s; opacity: 0; pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.toast-success { background: var(--success); }
+    #toast.toast-error { background: var(--error); }
+
+    /* ===== DIVIDER ===== */
+    .divider { height: 1px; background: var(--divider); margin: 8px 0; }
+    .section-divider { height: 8px; background: var(--bg); }
+
+    /* ===== CHARTER CHIP BAR ===== */
+    #page-charter .chips-bar { border-bottom: 1px solid var(--divider); }
+
+    /* ===== PRICE TEXT ===== */
+    .price-text { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .price-unit { font-size: 12px; font-weight: 400; color: var(--text-sec); }
+
+    /* ===== MISC ===== */
+    .text-primary { color: var(--primary); }
+    .text-sec { color: var(--text-sec); }
+    .font-bold { font-weight: 700; }
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .gap-8 { gap: 8px; }
+
+    /* Booking cost estimate */
+    .cost-estimate {
+      background: #FFF3F5; border-radius: 10px; padding: 12px;
+      margin-top: 10px; text-align: center;
+    }
+    .cost-label { font-size: 13px; color: var(--text-sec); margin-bottom: 4px; }
+
+    /* Order detail info rows */
+    .info-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-weight: 600; width: 80px; flex-shrink: 0; color: var(--text-sec); }
+    .info-value { flex: 1; }
+
+    /* explore filter */
+    #page-explore .chips-bar { border-bottom: 1px solid var(--divider); }
+
+    /* login page content */
+    #page-profile .empty-state { padding-top: 64px; }
+
+    /* Google sign in div */
+    #g_id_onload { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header id="app-header">
+  <div class="logo">Fun2Go <span>旅遊規劃</span></div>
+  <div class="header-right">
+    <button id="btn-login" onclick="showLoginModal()" style="display:none">登入</button>
+    <img id="header-avatar" alt="avatar" style="display:none" onclick="navigateTo('profile')" />
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main id="app-main">
+
+  <!-- ===== MAP PAGE ===== -->
+  <div id="page-map" class="page active">
+    <div class="chips-bar" id="map-chips">
+      <button class="chip active" data-cat="all">全部</button>
+      <button class="chip" data-cat="attraction">景點</button>
+      <button class="chip" data-cat="restaurant">餐廳</button>
+      <button class="chip" data-cat="night_market">夜市</button>
+      <button class="chip" data-cat="shopping">購物</button>
+      <button class="chip" data-cat="cafe">咖啡廳</button>
+      <button class="chip" data-cat="accommodation">住宿</button>
+    </div>
+    <div id="map-container" style="flex:1;position:relative;">
+      <div id="gmap"></div>
+    </div>
+  </div>
+
+  <!-- ===== EXPLORE PAGE ===== -->
+  <div id="page-explore" class="page">
+    <div class="page-toolbar">
+      <h1>探索行程</h1>
+      <button class="btn-text" onclick="showMyItinerariesModal()" id="btn-my-trips">我的行程</button>
+    </div>
+    <div class="card-grid" id="explore-grid">
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+
+  <!-- ===== CHARTER PAGE ===== -->
+  <div id="page-charter" class="page">
+    <div class="page-toolbar">
+      <h1>租車服務</h1>
+      <button class="btn-text" onclick="showMyOrders()">我的訂單</button>
+    </div>
+    <div class="chips-bar" id="vehicle-chips">
+      <button class="chip active" data-type="all">全部</button>
+      <button class="chip" data-type="sedan_4">轎車</button>
+      <button class="chip" data-type="van_9">九人座</button>
+      <button class="chip" data-type="bus_20">巴士</button>
+    </div>
+    <div class="card-grid" id="vehicle-grid">
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+
+  <!-- ===== PROFILE PAGE ===== -->
+  <div id="page-profile" class="page">
+    <!-- Logged out state -->
+    <div id="profile-out" class="scroll-content" style="overflow-y:auto;">
+      <div class="empty-state">
+        <div class="empty-icon">✈️</div>
+        <h2>開始您的旅程</h2>
+        <p>登入後即可建立行程、收藏景點、管理訂單</p>
+        <button class="btn-primary" onclick="showLoginModal()">Google 登入</button>
+      </div>
+    </div>
+    <!-- Logged in state -->
+    <div id="profile-in" style="display:none;flex:1;overflow-y:auto;">
+      <!-- Hero -->
+      <div class="profile-hero">
+        <div id="profile-avatar-wrap">
+          <div class="profile-avatar-placeholder">👤</div>
+        </div>
+        <div class="profile-info">
+          <h2 id="profile-name">用戶</h2>
+          <p id="profile-email"></p>
+        </div>
+        <button class="profile-edit-btn" onclick="showEditProfileModal()">編輯</button>
+      </div>
+      <!-- My Itineraries -->
+      <div class="section-header">
+        <span class="section-title">我的行程</span>
+        <button class="btn-text" onclick="showCreateItineraryModal()">+ 新增行程</button>
+      </div>
+      <div id="my-itineraries-list">
+        <div class="loading-spinner"></div>
+      </div>
+      <div class="section-divider"></div>
+      <!-- Orders shortcut -->
+      <div style="padding: 12px 16px;">
+        <button class="btn-outline" style="width:100%;padding:12px;" onclick="showMyOrders()">📋 查看我的訂單</button>
+      </div>
+      <!-- Logout -->
+      <div style="padding: 12px 16px 24px;">
+        <button class="btn-danger" style="width:100%;padding:12px;" onclick="logout()">登出</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav id="bottom-nav">
+  <button class="nav-item active" data-page="map" onclick="navigateTo('map')">
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">地圖</span>
+  </button>
+  <button class="nav-item" data-page="explore" onclick="navigateTo('explore')">
+    <span class="nav-icon">🧭</span>
+    <span class="nav-label">探索</span>
+  </button>
+  <button class="nav-item" data-page="charter" onclick="navigateTo('charter')">
+    <span class="nav-icon">🚗</span>
+    <span class="nav-label">租車</span>
+  </button>
+  <button class="nav-item" data-page="profile" onclick="navigateTo('profile')">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">個人</span>
+  </button>
+</nav>
+
+<!-- ===== OVERLAY ===== -->
+<div id="overlay" class="overlay" onclick="closeTopModal()"></div>
+
+<!-- ===== SPOT DETAIL PANEL ===== -->
+<div id="spot-panel">
+  <button class="spot-panel-close" onclick="closeSpotPanel()">✕</button>
+  <div id="spot-panel-img-wrap"></div>
+  <div class="spot-panel-body">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span id="sp-name" class="spot-panel-name" style="flex:1"></span>
+      <span id="sp-cat" class="badge badge-primary"></span>
+    </div>
+    <p id="sp-addr" class="spot-panel-addr"></p>
+    <div class="spot-panel-actions">
+      <button class="btn-primary" id="sp-fav-btn" onclick="toggleSpotFavorite()" style="flex:1">❤️ 收藏景點</button>
+      <button class="btn-outline" onclick="openSpotInMaps()">📍 地圖</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Login Modal -->
+<div id="modal-login" class="modal center">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">登入 Fun2Go</span>
+      <button class="modal-close" onclick="closeModal('modal-login')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:32px 24px;">
+      <div style="font-size:48px;margin-bottom:16px;">✈️</div>
+      <p style="font-size:14px;color:var(--text-sec);margin-bottom:24px;line-height:1.6;">
+        使用 Google 帳號登入，<br>即可建立行程、收藏景點、預訂租車
+      </p>
+      <button class="btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="startGoogleSignIn()">
+        🔑 使用 Google 帳號登入
+      </button>
+      <p style="font-size:11px;color:var(--text-sec);margin-top:16px;line-height:1.5;">
+        登入即表示您同意我們的服務條款
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Itinerary Detail Modal -->
+<div id="modal-itin" class="modal">
+  <div class="modal-sheet" style="max-height:92dvh;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="itin-modal-title">行程詳情</span>
+      <button class="modal-close" onclick="closeModal('modal-itin')">✕</button>
+    </div>
+    <div class="modal-body" id="itin-modal-body">
+      <div class="loading-spinner"></div>
+    </div>
+    <div class="modal-footer" id="itin-modal-footer">
+      <button class="btn-secondary" style="flex:1" onclick="copyCurrentItinerary()">📋 複製行程</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Itinerary Modal -->
+<div id="modal-create-itin" class="modal center">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">建立新行程</span>
+      <button class="modal-close" onclick="closeModal('modal-create-itin')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">行程標題 *</label>
+        <input class="form-input" id="ci-title" placeholder="例：台北三日遊" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">目的地</label>
+        <select class="form-select" id="ci-dest">
+          <option value="">請選擇目的地</option>
+          <option>台北</option><option>台中</option><option>台南</option>
+          <option>高雄</option><option>花蓮</option><option>宜蘭</option>
+          <option>墾丁</option><option>台東</option><option>南投</option>
+          <option>新竹</option><option>桃園</option><option>基隆</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">天數 *</label>
+        <input class="form-input" id="ci-days" type="number" min="1" max="30" value="3" placeholder="3" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">出發日期（選填）</label>
+        <input class="form-input" id="ci-date" type="date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">是否公開</label>
+        <select class="form-select" id="ci-public">
+          <option value="false">不公開</option>
+          <option value="true">公開</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="createItinerary()">建立行程</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div id="modal-edit-profile" class="modal center">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">編輯個人資料</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-profile')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">姓名</label>
+        <input class="form-input" id="ep-name" placeholder="您的姓名" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="ep-email" type="email" placeholder="email@example.com" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="updateProfile()">儲存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- Booking Modal -->
+<div id="modal-booking" class="modal center">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="booking-title">包車預訂</span>
+      <button class="modal-close" onclick="closeModal('modal-booking')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="booking-vehicle-info" style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;"></div>
+      <div class="form-group">
+        <label class="form-label">上車地點 *</label>
+        <input class="form-input" id="bk-pickup" placeholder="例：台北車站" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">下車地點</label>
+        <input class="form-input" id="bk-dropoff" placeholder="例：桃園機場" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">上車時間 *</label>
+        <input class="form-input" id="bk-time" type="datetime-local" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">天數 *</label>
+          <input class="form-input" id="bk-days" type="number" min="1" max="30" value="1" oninput="updateBookingCost()" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">乘客人數 *</label>
+          <input class="form-input" id="bk-pax" type="number" min="1" value="4" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">聯絡人姓名 *</label>
+        <input class="form-input" id="bk-contact-name" placeholder="王小明" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">聯絡電話 *</label>
+        <input class="form-input" id="bk-contact-phone" type="tel" placeholder="0912-345-678" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">特殊需求</label>
+        <input class="form-input" id="bk-special" placeholder="例：嬰兒座椅、大型行李等" />
+      </div>
+      <div class="cost-estimate">
+        <div class="cost-label">預估費用</div>
+        <div class="price-text" id="bk-cost">NT$ 0</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="submitBooking()">確認預訂</button>
+    </div>
+  </div>
+</div>
+
+<!-- My Itineraries Modal -->
+<div id="modal-my-itin" class="modal">
+  <div class="modal-sheet" style="max-height:92dvh;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">我的行程</span>
+      <button class="modal-close" onclick="closeModal('modal-my-itin')">✕</button>
+    </div>
+    <div class="modal-body" id="my-itin-modal-body">
+      <div class="loading-spinner"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeModal('modal-my-itin');showCreateItineraryModal()">+ 建立新行程</button>
+    </div>
+  </div>
+</div>
+
+<!-- Orders Modal -->
+<div id="modal-orders" class="modal">
+  <div class="modal-sheet" style="max-height:92dvh;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">我的訂單</span>
+      <button class="modal-close" onclick="closeModal('modal-orders')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div class="chips-bar" id="order-status-chips" style="border-bottom:1px solid var(--divider);">
+        <button class="chip active" data-status="all">全部</button>
+        <button class="chip" data-status="pending">待付款</button>
+        <button class="chip" data-status="confirmed">已確認</button>
+        <button class="chip" data-status="completed">已完成</button>
+        <button class="chip" data-status="cancelled">已取消</button>
+      </div>
+      <div id="orders-list">
+        <div class="loading-spinner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div id="modal-order-detail" class="modal center">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">訂單詳情</span>
+      <button class="modal-close" onclick="closeModal('modal-order-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="order-detail-body"></div>
+    <div class="modal-footer" id="order-detail-footer"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Google One Tap (hidden) -->
+<div id="g_id_onload"
+     data-client_id="36737576573-fepgqksogcshgpe0cshfg7ufoch3sv50.apps.googleusercontent.com"
+     data-callback="handleGoogleCredential"
+     data-auto_prompt="false">
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+// ================================================================
+// CONFIGURATION
+// ================================================================
+const API_BASE = 'https://v1api.samuelray.net';
+const GOOGLE_CLIENT_ID = '36737576573-fepgqksogcshgpe0cshfg7ufoch3sv50.apps.googleusercontent.com';
+const MAPS_API_KEY = 'AIzaSyDWqHDVrzxd88Btdbi1PFelFCEr_w3GmtI';
+
+// ================================================================
+// STATE
+// ================================================================
+const state = {
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  currentPage: 'map',
+  spots: [],
+  selectedCategory: 'all',
+  savedSpotIds: new Set(),
+  userItineraries: [],
+  publicItineraries: [],
+  vehicles: [],
+  vehicleFilter: 'all',
+  orders: [],
+  orderFilter: 'all',
+  map: null,
+  markers: [],
+  selectedSpot: null,
+  currentItineraryId: null,
+  currentVehicle: null,
+  modalStack: [],
+};
+
+// ================================================================
+// STORAGE
+// ================================================================
+function loadFromStorage() {
+  try {
+    const data = JSON.parse(localStorage.getItem('fun2go_auth') || '{}');
+    if (data.user) state.user = data.user;
+    if (data.accessToken) state.accessToken = data.accessToken;
+    if (data.refreshToken) state.refreshToken = data.refreshToken;
+  } catch (e) {}
+}
+function saveToStorage() {
+  localStorage.setItem('fun2go_auth', JSON.stringify({
+    user: state.user,
+    accessToken: state.accessToken,
+    refreshToken: state.refreshToken,
+  }));
+}
+function clearStorage() {
+  localStorage.removeItem('fun2go_auth');
+}
+
+// ================================================================
+// API CLIENT
+// ================================================================
+async function apiCall(method, path, body = null, requiresAuth = false) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (requiresAuth && state.accessToken) {
+    headers['Authorization'] = 'Bearer ' + state.accessToken;
+  } else if (state.accessToken) {
+    headers['Authorization'] = 'Bearer ' + state.accessToken;
+  }
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_BASE + path, opts);
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || 'API Error ' + res.status);
+  return data;
+}
+const api = {
+  get: (path) => apiCall('GET', path),
+  post: (path, body) => apiCall('POST', path, body, true),
+  put: (path, body) => apiCall('PUT', path, body, true),
+  delete: (path) => apiCall('DELETE', path, null, true),
+};
+
+// ================================================================
+// AUTH
+// ================================================================
+async function handleGoogleCredential(response) {
+  try {
+    showToast('正在登入...', 'info');
+    const result = await apiCall('POST', '/api/auth/google', { id_token: response.credential });
+    state.user = result.user;
+    state.accessToken = result.accessToken;
+    state.refreshToken = result.refreshToken;
+    saveToStorage();
+    updateAuthUI();
+    closeModal('modal-login');
+    showToast('登入成功！歡迎 ' + state.user.name, 'success');
+    if (state.currentPage === 'profile') loadProfilePage();
+  } catch (e) {
+    showToast('登入失敗：' + e.message, 'error');
+  }
+}
+
+function startGoogleSignIn() {
+  if (window.google && window.google.accounts) {
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback to OAuth redirect
+        showToast('正在開啟 Google 登入...', 'info');
+        const params = new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          redirect_uri: window.location.origin + window.location.pathname,
+          response_type: 'token id_token',
+          scope: 'openid profile email',
+          nonce: Math.random().toString(36).substring(2),
+        });
+        window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params;
+      }
+    });
+  } else {
+    showToast('Google 登入載入中，請稍後再試', 'error');
+  }
+}
+
+function logout() {
+  if (state.refreshToken) {
+    apiCall('POST', '/api/auth/logout', { refreshToken: state.refreshToken }).catch(() => {});
+  }
+  state.user = null;
+  state.accessToken = null;
+  state.refreshToken = null;
+  state.savedSpotIds.clear();
+  state.userItineraries = [];
+  clearStorage();
+  updateAuthUI();
+  if (state.currentPage === 'profile') renderProfileLoggedOut();
+  showToast('已登出');
+}
+
+function requireLogin(callback) {
+  if (state.user) { callback(); return; }
+  showModal('modal-login');
+}
+
+function updateAuthUI() {
+  const btnLogin = document.getElementById('btn-login');
+  const avatar = document.getElementById('header-avatar');
+  if (state.user) {
+    btnLogin.style.display = 'none';
+    avatar.style.display = 'block';
+    avatar.src = state.user.avatar_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="%23F44062"/><text x="20" y="26" font-size="18" text-anchor="middle" fill="white">👤</text></svg>';
+  } else {
+    btnLogin.style.display = 'block';
+    avatar.style.display = 'none';
+  }
+}
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+function navigateTo(page) {
+  if (state.currentPage === page) return;
+  document.getElementById('page-' + state.currentPage).classList.remove('active');
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('#bottom-nav .nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  state.currentPage = page;
+  if (page === 'explore') loadPublicItineraries();
+  if (page === 'charter') loadVehicles();
+  if (page === 'profile') loadProfilePage();
+}
+
+// ================================================================
+// MODALS
+// ================================================================
+function showModal(id) {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('show');
+  const modal = document.getElementById(id);
+  modal.classList.add('show');
+  state.modalStack.push(id);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+  state.modalStack = state.modalStack.filter(m => m !== id);
+  if (state.modalStack.length === 0) {
+    document.getElementById('overlay').classList.remove('show');
+  }
+}
+function closeTopModal() {
+  if (state.modalStack.length > 0) {
+    closeModal(state.modalStack[state.modalStack.length - 1]);
+  }
+}
+function closeAllModals() {
+  [...state.modalStack].forEach(id => closeModal(id));
+}
+function showLoginModal() { showModal('modal-login'); }
+
+// ================================================================
+// TOAST
+// ================================================================
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type !== 'info' ? ' toast-' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+// ================================================================
+// UTILITIES
+// ================================================================
+const CATEGORY_MAP = {
+  attraction: '景點', restaurant: '餐廳', night_market: '夜市',
+  cafe: '咖啡廳', shopping: '購物', accommodation: '住宿',
+};
+const CAT_EMOJI = {
+  attraction: '🏛️', restaurant: '🍜', night_market: '🌙',
+  cafe: '☕', shopping: '🛍️', accommodation: '🏨',
+};
+function getCatLabel(cat) { return CATEGORY_MAP[cat] || cat || '其他'; }
+function getCatEmoji(cat) { return CAT_EMOJI[cat] || '📍'; }
+function formatCurrency(amount) {
+  return 'NT$ ' + Number(amount).toLocaleString('zh-TW');
+}
+function formatDate(d) {
+  if (!d) return '未設定';
+  return new Date(d).toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' });
+}
+function getStatusLabel(s) {
+  return { pending: '待付款', confirmed: '已確認', completed: '已完成', cancelled: '已取消' }[s] || s;
+}
+function getStatusBadgeClass(s) {
+  return { pending: 'badge-warning', confirmed: 'badge-success', completed: 'badge-neutral', cancelled: 'badge-error' }[s] || 'badge-neutral';
+}
+function imgOrPlaceholder(url, emoji, cls) {
+  if (url) return `<img src="${url}" class="${cls}" onerror="this.style.display='none'">`;
+  return `<div class="${cls}" style="background:linear-gradient(135deg,#ffe0e6,#ffc8d3);display:flex;align-items:center;justify-content:center;font-size:${cls.includes('sm') ? '16px' : '40px'}">${emoji}</div>`;
+}
+
+// ================================================================
+// GOOGLE MAPS
+// ================================================================
+function initMap() {
+  state.map = new google.maps.Map(document.getElementById('gmap'), {
+    center: { lat: 25.0330, lng: 121.5654 },
+    zoom: 13,
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy',
+    styles: [
+      { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+    ],
+  });
+  loadSpots();
+  // Long press handler
+  let pressTimer;
+  state.map.addListener('mousedown', () => {
+    pressTimer = setTimeout(() => {}, 800);
+  });
+}
+
+async function loadSpots() {
+  try {
+    const spots = await apiCall('GET', '/api/spots');
+    state.spots = Array.isArray(spots) ? spots : [];
+    filterAndPlaceMarkers();
+  } catch (e) {
+    console.error('Failed to load spots:', e);
+  }
+}
+
+function filterAndPlaceMarkers() {
+  state.markers.forEach(m => m.setMap(null));
+  state.markers = [];
+  const filtered = state.selectedCategory === 'all'
+    ? state.spots
+    : state.spots.filter(s => s.category === state.selectedCategory);
+
+  filtered.forEach(spot => {
+    if (!spot.latitude || !spot.longitude) return;
+    const lat = parseFloat(spot.latitude);
+    const lng = parseFloat(spot.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const isSaved = state.savedSpotIds.has(spot.id);
+    const marker = new google.maps.Marker({
+      position: { lat, lng },
+      map: state.map,
+      title: spot.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: isSaved ? 9 : 7,
+        fillColor: isSaved ? '#FF6B8A' : (spot.creator_id ? '#9C27B0' : '#F44062'),
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: '#fff',
+      },
+    });
+    marker.addListener('click', () => showSpotPanel(spot));
+    state.markers.push(marker);
+  });
+}
+
+function showSpotPanel(spot) {
+  state.selectedSpot = spot;
+  const panel = document.getElementById('spot-panel');
+  // Image
+  const imgWrap = document.getElementById('spot-panel-img-wrap');
+  if (spot.image_url) {
+    imgWrap.innerHTML = `<img src="${spot.image_url}" class="spot-panel-img" onerror="this.parentElement.innerHTML='<div class=spot-panel-placeholder>${getCatEmoji(spot.category)}</div>'">`;
+  } else {
+    imgWrap.innerHTML = `<div class="spot-panel-placeholder">${getCatEmoji(spot.category)}</div>`;
+  }
+  document.getElementById('sp-name').textContent = spot.name || '未命名景點';
+  document.getElementById('sp-cat').textContent = getCatLabel(spot.category);
+  document.getElementById('sp-addr').textContent = spot.address || '台灣';
+  // Fav button
+  const favBtn = document.getElementById('sp-fav-btn');
+  if (state.savedSpotIds.has(spot.id)) {
+    favBtn.textContent = '💛 已收藏';
+    favBtn.style.background = '#FF9800';
+  } else {
+    favBtn.textContent = '❤️ 收藏景點';
+    favBtn.style.background = 'var(--primary)';
+  }
+  panel.classList.add('show');
+}
+
+function closeSpotPanel() {
+  document.getElementById('spot-panel').classList.remove('show');
+  state.selectedSpot = null;
+}
+
+function toggleSpotFavorite() {
+  if (!state.user) { showModal('modal-login'); return; }
+  const spot = state.selectedSpot;
+  if (!spot) return;
+  const uid = state.user.id;
+  if (state.savedSpotIds.has(spot.id)) {
+    apiCall('DELETE', `/api/spots/${spot.id}/favorites`, null, true)
+      .then(() => {
+        state.savedSpotIds.delete(spot.id);
+        showToast('已取消收藏');
+        showSpotPanel(spot);
+        filterAndPlaceMarkers();
+      }).catch(e => showToast('操作失敗：' + e.message, 'error'));
+  } else {
+    apiCall('POST', `/api/users/${uid}/favorites`, { spot_id: spot.id }, true)
+      .then(() => {
+        state.savedSpotIds.add(spot.id);
+        showToast('已收藏景點');
+        showSpotPanel(spot);
+        filterAndPlaceMarkers();
+      }).catch(e => showToast('操作失敗：' + e.message, 'error'));
+  }
+}
+
+function openSpotInMaps() {
+  const spot = state.selectedSpot;
+  if (!spot) return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`;
+  window.open(url, '_blank');
+}
+
+// Category chip filter on map
+document.getElementById('map-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#map-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.selectedCategory = chip.dataset.cat;
+  filterAndPlaceMarkers();
+  closeSpotPanel();
+});
+
+// ================================================================
+// EXPLORE PAGE — PUBLIC ITINERARIES
+// ================================================================
+async function loadPublicItineraries() {
+  const grid = document.getElementById('explore-grid');
+  grid.innerHTML = '<div class="loading-spinner"></div>';
+  try {
+    const data = await apiCall('GET', '/api/itineraries?limit=30&offset=0');
+    const list = Array.isArray(data) ? data : (data.data || []);
+    state.publicItineraries = list;
+    renderPublicItineraries(list);
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">😅</div><h2>載入失敗</h2><p>${e.message}</p></div>`;
+  }
+}
+
+function renderPublicItineraries(list) {
+  const grid = document.getElementById('explore-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🧭</div><h2>暫無公開行程</h2></div>';
+    return;
+  }
+  grid.innerHTML = list.map(itin => `
+    <div class="card" onclick="openItineraryDetail(${itin.id})" style="cursor:pointer;">
+      ${itin.cover_image_url
+        ? `<img src="${itin.cover_image_url}" class="card-cover" onerror="this.outerHTML='<div class=card-cover-placeholder>🗺️</div>'">`
+        : `<div class="card-cover-placeholder">🗺️</div>`}
+      <div class="card-body">
+        <div class="card-title">${itin.title || '行程'}</div>
+        <div class="card-meta">
+          <span>📍 ${itin.destination || '未知目的地'}</span>
+          <span>📅 ${itin.total_days || 1} 天</span>
+          <span>📋 複製 ${itin.copy_count || 0} 次</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div class="card-author">
+          ${itin.author_avatar ? `<img src="${itin.author_avatar}" class="avatar-sm" onerror="this.style.display='none'">` : ''}
+          <span>by ${itin.author_name || '匿名'}</span>
+        </div>
+        <button class="btn-secondary" style="padding:5px 14px;font-size:12px;" onclick="event.stopPropagation();copyItinerary(${itin.id},'${(itin.title||'').replace(/'/g,"\\'")}')">📋 複製</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openItineraryDetail(id) {
+  state.currentItineraryId = id;
+  showModal('modal-itin');
+  document.getElementById('itin-modal-body').innerHTML = '<div class="loading-spinner"></div>';
+  try {
+    const itin = await apiCall('GET', '/api/itineraries/' + id);
+    renderItineraryDetail(itin);
+  } catch (e) {
+    document.getElementById('itin-modal-body').innerHTML = `<p style="color:var(--error)">載入失敗：${e.message}</p>`;
+  }
+}
+
+function renderItineraryDetail(itin) {
+  document.getElementById('itin-modal-title').textContent = itin.title || '行程詳情';
+  const days = itin.days || [];
+  if (!days.length) {
+    document.getElementById('itin-modal-body').innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><h2>尚無天數資料</h2></div>';
+    return;
+  }
+  const html = `
+    <div style="margin-bottom:12px;background:var(--bg);border-radius:10px;padding:10px;">
+      <div style="font-size:13px;color:var(--text-sec);display:flex;gap:16px;flex-wrap:wrap;">
+        <span>📍 ${itin.destination || '未知目的地'}</span>
+        <span>📅 ${itin.total_days || days.length} 天</span>
+        <span>📋 複製 ${itin.copy_count || 0} 次</span>
+        ${itin.author_name ? `<span>👤 ${itin.author_name}</span>` : ''}
+      </div>
+    </div>
+    ${days.map(day => `
+      <div class="day-block">
+        <div class="day-header">第 ${day.day_number} 天 ${day.date ? '· ' + formatDate(day.date) : ''}</div>
+        ${(day.spots || []).length === 0
+          ? `<p style="font-size:13px;color:var(--text-sec);padding:8px 0;">（本日無安排景點）</p>`
+          : (day.spots || []).map((s, i) => `
+            <div class="spot-entry">
+              <div class="spot-order-badge">${i + 1}</div>
+              <div class="spot-entry-info">
+                <div class="spot-entry-name">${s.name || '景點'}</div>
+                ${s.address ? `<div class="spot-entry-addr">${s.address}</div>` : ''}
+                ${s.arrival_time ? `<div style="font-size:11px;color:var(--text-sec);margin-top:2px;">🕐 ${s.arrival_time}${s.departure_time ? ' – ' + s.departure_time : ''}</div>` : ''}
+              </div>
+              <span class="badge badge-primary" style="flex-shrink:0;">${getCatLabel(s.category)}</span>
+            </div>
+          `).join('')}
+      </div>
+    `).join('')}
+  `;
+  document.getElementById('itin-modal-body').innerHTML = html;
+}
+
+async function copyItinerary(id, title) {
+  requireLogin(async () => {
+    try {
+      await api.post('/api/itineraries/' + id + '/copy', {});
+      showToast('已複製行程：' + (title || ''), 'success');
+      loadMyItineraries();
+    } catch (e) {
+      showToast('複製失敗：' + e.message, 'error');
+    }
+  });
+}
+
+async function copyCurrentItinerary() {
+  if (!state.currentItineraryId) return;
+  copyItinerary(state.currentItineraryId, '');
+}
+
+// ================================================================
+// MY ITINERARIES
+// ================================================================
+async function loadMyItineraries() {
+  if (!state.user) return;
+  try {
+    const list = await apiCall('GET', `/api/users/${state.user.id}/itineraries`);
+    state.userItineraries = Array.isArray(list) ? list.filter(i => i.author_id === state.user.id || i.user_id === state.user.id || true) : [];
+    renderMyItineraries();
+  } catch (e) {
+    console.error('Failed to load itineraries:', e);
+  }
+}
+
+function renderMyItineraries() {
+  const list = state.userItineraries;
+  const el = document.getElementById('my-itineraries-list');
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:14px;">尚無行程，點擊上方「新增行程」開始</div>';
+    return;
+  }
+  el.innerHTML = list.map(itin => `
+    <div class="itin-item">
+      <div class="itin-item-body" onclick="openItineraryDetail(${itin.id})" style="cursor:pointer;">
+        <div class="itin-item-title">${itin.title || '未命名行程'}</div>
+        <div class="itin-item-meta">📍 ${itin.destination || '未知'} · 📅 ${itin.total_days || 1} 天</div>
+      </div>
+      <div class="itin-item-actions">
+        <button class="btn-icon" onclick="confirmDeleteItinerary(${itin.id},'${(itin.title||'').replace(/'/g,"\\'")}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showMyItinerariesModal() {
+  requireLogin(() => {
+    showModal('modal-my-itin');
+    renderMyItinerariesModal();
+    loadMyItineraries().then(() => renderMyItinerariesModal());
+  });
+}
+
+function renderMyItinerariesModal() {
+  const body = document.getElementById('my-itin-modal-body');
+  const list = state.userItineraries;
+  if (!list.length) {
+    body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-sec);font-size:14px;">尚無行程</div>';
+    return;
+  }
+  body.innerHTML = list.map(itin => `
+    <div style="padding:14px;border-bottom:1px solid var(--divider);cursor:pointer;" onclick="closeModal('modal-my-itin');openItineraryDetail(${itin.id})">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${itin.title || '未命名行程'}</div>
+      <div style="font-size:12px;color:var(--text-sec);">📍 ${itin.destination || '未知'} · 📅 ${itin.total_days || 1} 天</div>
+    </div>
+  `).join('');
+}
+
+function showCreateItineraryModal() {
+  requireLogin(() => {
+    document.getElementById('ci-title').value = '';
+    document.getElementById('ci-dest').value = '';
+    document.getElementById('ci-days').value = '3';
+    document.getElementById('ci-date').value = '';
+    document.getElementById('ci-public').value = 'false';
+    showModal('modal-create-itin');
+  });
+}
+
+async function createItinerary() {
+  const title = document.getElementById('ci-title').value.trim();
+  const destination = document.getElementById('ci-dest').value;
+  const total_days = parseInt(document.getElementById('ci-days').value) || 1;
+  const startDate = document.getElementById('ci-date').value;
+  const is_public = document.getElementById('ci-public').value === 'true';
+  if (!title) { showToast('請輸入行程標題', 'error'); return; }
+  try {
+    const body = { title, total_days, is_public };
+    if (destination) body.destination = destination;
+    if (startDate) body.start_date = startDate;
+    const itin = await api.post('/api/itineraries', body);
+    showToast('行程建立成功！', 'success');
+    closeModal('modal-create-itin');
+    // Init days
+    for (let i = 1; i <= total_days; i++) {
+      try {
+        const day = await api.post('/api/itineraries/' + itin.id + '/days', { day_number: i });
+        if (startDate && day && day.id) {
+          const date = new Date(startDate);
+          date.setDate(date.getDate() + (i - 1));
+          await api.put('/api/itineraries/' + itin.id + '/days/' + day.id, { date: date.toISOString().split('T')[0] });
+        }
+      } catch (e) { console.error('Day init failed', e); }
+    }
+    await loadMyItineraries();
+    renderMyItineraries();
+  } catch (e) {
+    showToast('建立失敗：' + e.message, 'error');
+  }
+}
+
+function confirmDeleteItinerary(id, title) {
+  if (!confirm(`確定要刪除「${title || '行程'}」嗎？此操作無法復原。`)) return;
+  deleteItinerary(id);
+}
+
+async function deleteItinerary(id) {
+  try {
+    await api.delete('/api/itineraries/' + id);
+    showToast('行程已刪除', 'success');
+    state.userItineraries = state.userItineraries.filter(i => i.id !== id);
+    renderMyItineraries();
+  } catch (e) {
+    showToast('刪除失敗：' + e.message, 'error');
+  }
+}
+
+// ================================================================
+// CHARTER — VEHICLES
+// ================================================================
+async function loadVehicles(type = null) {
+  const grid = document.getElementById('vehicle-grid');
+  grid.innerHTML = '<div class="loading-spinner"></div>';
+  const t = type || (state.vehicleFilter === 'all' ? null : state.vehicleFilter);
+  const q = t ? `?type=${t}&available=true` : '';
+  try {
+    const vehicles = await apiCall('GET', '/api/vehicles' + q);
+    state.vehicles = Array.isArray(vehicles) ? vehicles : [];
+    renderVehicles();
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🚗</div><h2>載入失敗</h2><p>${e.message}</p></div>`;
+  }
+}
+
+const VEHICLE_TYPE_MAP = { sedan_4: '轎車', van_9: '九人座', bus_20: '巴士' };
+const VEHICLE_EMOJI = { sedan_4: '🚗', van_9: '🚐', bus_20: '🚌' };
+
+function renderVehicles() {
+  const grid = document.getElementById('vehicle-grid');
+  const list = state.vehicles;
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🚗</div><h2>暫無可用車輛</h2></div>';
+    return;
+  }
+  grid.innerHTML = list.map(v => `
+    <div class="card vehicle-card" onclick="openBooking(${v.id})">
+      <div class="vehicle-card-inner">
+        ${v.image_url
+          ? `<img src="${v.image_url}" class="card-cover" onerror="this.outerHTML='<div class=card-cover-placeholder>${VEHICLE_EMOJI[v.type] || '🚗'}</div>'">`
+          : `<div class="card-cover-placeholder">${VEHICLE_EMOJI[v.type] || '🚗'}</div>`}
+        ${!v.is_available ? '<div class="vehicle-badge-unavail">暫不可用</div>' : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${v.name || '車輛'}</div>
+        <div class="card-meta">
+          <span>${VEHICLE_TYPE_MAP[v.type] || v.type}</span>
+          <span>👥 ${v.capacity} 人</span>
+        </div>
+        <div style="margin-top:8px;">
+          <span class="price-text">${formatCurrency(v.price_per_day)}</span>
+          <span class="price-unit"> / 天</span>
+        </div>
+        ${v.description ? `<p style="font-size:12px;color:var(--text-sec);margin-top:6px;">${v.description}</p>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openBooking(vehicleId) {
+  requireLogin(() => {
+    const v = state.vehicles.find(x => x.id === vehicleId);
+    if (!v) return;
+    if (!v.is_available) { showToast('此車輛目前暫不可用', 'error'); return; }
+    state.currentVehicle = v;
+    // Fill modal
+    document.getElementById('booking-title').textContent = '預訂：' + (v.name || '車輛');
+    document.getElementById('booking-vehicle-info').innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center;">
+        <span style="font-size:32px;">${VEHICLE_EMOJI[v.type] || '🚗'}</span>
+        <div>
+          <div style="font-weight:700;">${v.name || '車輛'}</div>
+          <div style="font-size:13px;color:var(--text-sec);">${VEHICLE_TYPE_MAP[v.type] || v.type} · 最多 ${v.capacity} 人</div>
+          <div style="font-weight:700;color:var(--primary);">${formatCurrency(v.price_per_day)} / 天</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('bk-days').value = '1';
+    document.getElementById('bk-pax').value = '4';
+    document.getElementById('bk-pickup').value = '';
+    document.getElementById('bk-dropoff').value = '';
+    document.getElementById('bk-contact-name').value = state.user ? state.user.name : '';
+    document.getElementById('bk-contact-phone').value = '';
+    document.getElementById('bk-special').value = '';
+    // Default time: tomorrow 08:00
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+    document.getElementById('bk-time').value = tomorrow.toISOString().slice(0, 16);
+    updateBookingCost();
+    showModal('modal-booking');
+  });
+}
+
+function updateBookingCost() {
+  const v = state.currentVehicle;
+  if (!v) return;
+  const days = parseInt(document.getElementById('bk-days').value) || 1;
+  const total = parseFloat(v.price_per_day) * days;
+  document.getElementById('bk-cost').textContent = formatCurrency(total);
+}
+
+async function submitBooking() {
+  const v = state.currentVehicle;
+  if (!v) return;
+  const pickup = document.getElementById('bk-pickup').value.trim();
+  const dropoff = document.getElementById('bk-dropoff').value.trim();
+  const pickupTime = document.getElementById('bk-time').value;
+  const days = parseInt(document.getElementById('bk-days').value) || 1;
+  const pax = parseInt(document.getElementById('bk-pax').value) || 1;
+  const contactName = document.getElementById('bk-contact-name').value.trim();
+  const contactPhone = document.getElementById('bk-contact-phone').value.trim();
+  const special = document.getElementById('bk-special').value.trim();
+
+  if (!pickup) { showToast('請填寫上車地點', 'error'); return; }
+  if (!pickupTime) { showToast('請選擇上車時間', 'error'); return; }
+  if (!contactName) { showToast('請填寫聯絡人姓名', 'error'); return; }
+  if (!contactPhone) { showToast('請填寫聯絡電話', 'error'); return; }
+
+  const totalAmount = parseFloat(v.price_per_day) * days;
+  const body = {
+    order_type: 'charter',
+    total_amount: totalAmount,
+    charter_booking: {
+      vehicle_id: v.id,
+      pickup_location: pickup,
+      dropoff_location: dropoff || null,
+      pickup_time: new Date(pickupTime).toISOString(),
+      days,
+      passenger_count: pax,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      special_requests: special || null,
+    }
+  };
+
+  try {
+    const order = await api.post('/api/orders', body);
+    closeModal('modal-booking');
+    if (confirm(`訂單建立成功！\n金額：${formatCurrency(totalAmount)}\n\n立即付款？`)) {
+      await api.post('/api/orders/' + order.id + '/pay', { method: 'mock' });
+      showToast('付款成功！訂單已確認', 'success');
+    } else {
+      showToast('訂單建立成功，請記得付款', 'success');
+    }
+    state.orders = [];
+  } catch (e) {
+    showToast('預訂失敗：' + e.message, 'error');
+  }
+}
+
+// Vehicle filter chips
+document.getElementById('vehicle-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#vehicle-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.vehicleFilter = chip.dataset.type;
+  loadVehicles(chip.dataset.type === 'all' ? null : chip.dataset.type);
+});
+
+// ================================================================
+// ORDERS
+// ================================================================
+async function showMyOrders() {
+  requireLogin(async () => {
+    showModal('modal-orders');
+    loadOrders();
+  });
+}
+
+async function loadOrders() {
+  document.getElementById('orders-list').innerHTML = '<div class="loading-spinner"></div>';
+  try {
+    const orders = await api.get('/api/orders');
+    state.orders = Array.isArray(orders) ? orders : [];
+    renderOrders();
+  } catch (e) {
+    document.getElementById('orders-list').innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><h2>載入失敗</h2><p>${e.message}</p></div>`;
+  }
+}
+
+function renderOrders() {
+  const filter = state.orderFilter;
+  const list = filter === 'all' ? state.orders : state.orders.filter(o => o.status === filter);
+  const el = document.getElementById('orders-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:32px 16px;"><div class="empty-icon">📋</div><h2>暫無訂單</h2></div>';
+    return;
+  }
+  el.innerHTML = list.map(o => `
+    <div class="order-item" onclick="showOrderDetail(${o.id})" style="cursor:pointer;">
+      <div class="order-header">
+        <div class="order-title">${o.charter_booking?.vehicle_name || o.order_type === 'charter' ? '包車預訂' : o.order_type}</div>
+        <span class="badge ${getStatusBadgeClass(o.status)}">${getStatusLabel(o.status)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="order-meta">
+          ${o.charter_booking?.pickup_location ? '📍 ' + o.charter_booking.pickup_location : ''}
+          · ${new Date(o.created_at).toLocaleDateString('zh-TW')}
+        </div>
+        <div class="order-amount">${formatCurrency(o.total_amount)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function showOrderDetail(orderId) {
+  showModal('modal-order-detail');
+  document.getElementById('order-detail-body').innerHTML = '<div class="loading-spinner"></div>';
+  document.getElementById('order-detail-footer').innerHTML = '';
+  try {
+    const o = await api.get('/api/orders/' + orderId);
+    const cb = o.charter_booking || {};
+    document.getElementById('order-detail-body').innerHTML = `
+      <div class="info-row"><div class="info-label">訂單編號</div><div class="info-value">#${o.id}</div></div>
+      <div class="info-row"><div class="info-label">狀態</div><div class="info-value"><span class="badge ${getStatusBadgeClass(o.status)}">${getStatusLabel(o.status)}</span></div></div>
+      <div class="info-row"><div class="info-label">車輛</div><div class="info-value">${cb.vehicle_name || '包車'}</div></div>
+      <div class="info-row"><div class="info-label">上車地點</div><div class="info-value">${cb.pickup_location || '-'}</div></div>
+      ${cb.dropoff_location ? `<div class="info-row"><div class="info-label">下車地點</div><div class="info-value">${cb.dropoff_location}</div></div>` : ''}
+      <div class="info-row"><div class="info-label">上車時間</div><div class="info-value">${cb.pickup_time ? new Date(cb.pickup_time).toLocaleString('zh-TW') : '-'}</div></div>
+      <div class="info-row"><div class="info-label">天數</div><div class="info-value">${cb.days || '-'} 天</div></div>
+      <div class="info-row"><div class="info-label">乘客</div><div class="info-value">${cb.passenger_count || '-'} 人</div></div>
+      <div class="info-row"><div class="info-label">聯絡人</div><div class="info-value">${cb.contact_name || '-'}</div></div>
+      <div class="info-row"><div class="info-label">電話</div><div class="info-value">${cb.contact_phone || '-'}</div></div>
+      ${cb.special_requests ? `<div class="info-row"><div class="info-label">特殊需求</div><div class="info-value">${cb.special_requests}</div></div>` : ''}
+      <div class="info-row" style="font-size:16px;"><div class="info-label" style="font-weight:800;">總金額</div><div class="info-value" style="font-weight:800;color:var(--primary);">${formatCurrency(o.total_amount)}</div></div>
+    `;
+    // Footer buttons based on status
+    const footer = document.getElementById('order-detail-footer');
+    if (o.status === 'pending') {
+      footer.innerHTML = `
+        <button class="btn-secondary" style="flex:1" onclick="cancelOrder(${o.id})">取消訂單</button>
+        <button class="btn-primary" style="flex:1" onclick="payOrder(${o.id})">立即付款</button>
+      `;
+    }
+  } catch (e) {
+    document.getElementById('order-detail-body').innerHTML = `<p style="color:var(--error)">載入失敗：${e.message}</p>`;
+  }
+}
+
+async function payOrder(id) {
+  try {
+    await api.post('/api/orders/' + id + '/pay', { method: 'mock' });
+    showToast('付款成功！', 'success');
+    closeModal('modal-order-detail');
+    loadOrders();
+  } catch (e) { showToast('付款失敗：' + e.message, 'error'); }
+}
+
+async function cancelOrder(id) {
+  if (!confirm('確定要取消此訂單？')) return;
+  try {
+    await api.post('/api/orders/' + id + '/cancel', {});
+    showToast('訂單已取消', 'success');
+    closeModal('modal-order-detail');
+    loadOrders();
+  } catch (e) { showToast('取消失敗：' + e.message, 'error'); }
+}
+
+// Order status filter
+document.getElementById('order-status-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#order-status-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  state.orderFilter = chip.dataset.status;
+  renderOrders();
+});
+
+// ================================================================
+// PROFILE PAGE
+// ================================================================
+function loadProfilePage() {
+  if (!state.user) {
+    renderProfileLoggedOut();
+  } else {
+    renderProfileLoggedIn();
+  }
+}
+
+function renderProfileLoggedOut() {
+  document.getElementById('profile-out').style.display = 'flex';
+  document.getElementById('profile-in').style.display = 'none';
+}
+
+function renderProfileLoggedIn() {
+  document.getElementById('profile-out').style.display = 'none';
+  const profileIn = document.getElementById('profile-in');
+  profileIn.style.display = 'flex';
+  profileIn.style.flexDirection = 'column';
+  // Update hero
+  const u = state.user;
+  document.getElementById('profile-name').textContent = u.name || '用戶';
+  document.getElementById('profile-email').textContent = u.email || '';
+  const avatarWrap = document.getElementById('profile-avatar-wrap');
+  if (u.avatar_url) {
+    avatarWrap.innerHTML = `<img src="${u.avatar_url}" class="profile-avatar-lg" alt="avatar" onerror="this.outerHTML='<div class=profile-avatar-placeholder>👤</div>'">`;
+  } else {
+    avatarWrap.innerHTML = `<div class="profile-avatar-placeholder">👤</div>`;
+  }
+  // Load itineraries
+  loadMyItineraries();
+}
+
+function showEditProfileModal() {
+  if (!state.user) return;
+  document.getElementById('ep-name').value = state.user.name || '';
+  document.getElementById('ep-email').value = state.user.email || '';
+  showModal('modal-edit-profile');
+}
+
+async function updateProfile() {
+  const name = document.getElementById('ep-name').value.trim();
+  const email = document.getElementById('ep-email').value.trim();
+  if (!name) { showToast('請填寫姓名', 'error'); return; }
+  try {
+    const body = { name };
+    if (email) body.email = email;
+    const updated = await api.put('/api/users/' + state.user.id, body);
+    state.user = { ...state.user, ...updated };
+    saveToStorage();
+    closeModal('modal-edit-profile');
+    renderProfileLoggedIn();
+    updateAuthUI();
+    showToast('個人資料已更新', 'success');
+  } catch (e) {
+    showToast('更新失敗：' + e.message, 'error');
+  }
+}
+
+// ================================================================
+// INIT
+// ================================================================
+function init() {
+  loadFromStorage();
+  updateAuthUI();
+  if (state.user && state.currentPage === 'profile') {
+    loadProfilePage();
+  }
+  // Show login button initially
+  if (!state.user) {
+    document.getElementById('btn-login').style.display = 'block';
+  }
+  // Fetch user favorites
+  if (state.user) {
+    apiCall('GET', `/api/users/${state.user.id}/favorites`)
+      .then(favs => {
+        (favs || []).forEach(f => state.savedSpotIds.add(f.id || f.spot_id));
+      }).catch(() => {});
+  }
+}
+
+window.onload = init;
+
+// Google Maps callback (called by Maps JS API)
+window.initMap = initMap;
+</script>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" onload="
+  google.accounts.id.initialize({
+    client_id: '36737576573-fepgqksogcshgpe0cshfg7ufoch3sv50.apps.googleusercontent.com',
+    callback: handleGoogleCredential,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+" defer></script>
+
+<!-- Google Maps JavaScript API -->
+<script
+  async
+  defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDWqHDVrzxd88Btdbi1PFelFCEr_w3GmtI&callback=initMap&libraries=places&language=zh-TW">
+</script>
+
+</body>
+</html>

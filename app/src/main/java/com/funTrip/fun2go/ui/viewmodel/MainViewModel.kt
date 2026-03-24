@@ -127,6 +127,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _spotsResponse = MutableLiveData<NetworkResult<List<Spot>>>()
     val spotsResponse: LiveData<NetworkResult<List<Spot>>> = _spotsResponse
 
+    private val _searchSpotsResult = MutableLiveData<NetworkResult<List<Spot>>>()
+    val searchSpotsResult: LiveData<NetworkResult<List<Spot>>> = _searchSpotsResult
+
     // ─── 行程 ─────────────────────────────────────────────────
     private val _itineraryDetail = MutableLiveData<NetworkResult<Itinerary>>()
     val itineraryDetail: LiveData<NetworkResult<Itinerary>> = _itineraryDetail
@@ -220,6 +223,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _spotsResponse.value = NetworkResult.Loading()
         viewModelScope.launch {
             _spotsResponse.value = repository.searchSpots(keyword)
+        }
+    }
+
+    fun searchSpotsInSheet(keyword: String?, category: String?) {
+        _searchSpotsResult.value = NetworkResult.Loading()
+        viewModelScope.launch {
+            _searchSpotsResult.value = repository.searchSpots(keyword, category)
         }
     }
 

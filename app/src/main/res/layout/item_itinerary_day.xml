@@ -44,6 +44,17 @@
 
     </LinearLayout>
 
+    <!-- 刪除天數 -->
+    <ImageButton
+        android:id="@+id/btnDeleteDay"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_delete"
+        android:tint="#CCAAAAAA"
+        android:contentDescription="Delete day" />
+
     <!-- 展開箭頭 -->
     <ImageView
         android:id="@+id/ivChevron"

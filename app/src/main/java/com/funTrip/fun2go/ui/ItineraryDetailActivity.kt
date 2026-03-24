@@ -133,7 +133,8 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             onAddSpotClick = { day -> showSpotPickerSheet(day) },
             onRemoveSpotClick = { itSpot, dayId -> showRemoveSpotDialog(itSpot, dayId) },
             onDateClick = { day -> showDatePickerForDay(day) },
-            onSpotClick = { itSpot, dayId -> showEditSpotSheet(itSpot, dayId) }
+            onSpotClick = { itSpot, dayId -> showEditSpotSheet(itSpot, dayId) },
+            onDeleteDayClick = { day -> confirmDeleteDay(day) }
         )
         rvDays.layoutManager = LinearLayoutManager(this)
         rvDays.adapter = dayAdapter
@@ -266,6 +267,20 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         viewModel.reorderResult.observe(this) { result ->
             if (result is NetworkResult.Error)
                 Snackbar.make(toolbar, getString(R.string.msg_reorder_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
+        }
+
+        viewModel.deleteDayResult.observe(this) { result ->
+            when (result) {
+                is NetworkResult.Loading -> pbLoading.visibility = View.VISIBLE
+                is NetworkResult.Success -> {
+                    pbLoading.visibility = View.GONE
+                    Toast.makeText(this, getString(R.string.msg_day_deleted), Toast.LENGTH_SHORT).show()
+                }
+                is NetworkResult.Error -> {
+                    pbLoading.visibility = View.GONE
+                    Snackbar.make(toolbar, getString(R.string.msg_delete_day_failed, result.message ?: ""), Snackbar.LENGTH_LONG).show()
+                }
+            }
         }
 
         viewModel.updateSpotAttrResult.observe(this) { result ->
@@ -536,6 +551,17 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
             val dateStr = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
             viewModel.updateDayDate(itineraryId, itDay.id, dateStr)
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
+    private fun confirmDeleteDay(day: ItineraryDay) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_delete_day))
+            .setMessage(getString(R.string.msg_delete_day_confirm, day.day_number))
+            .setPositiveButton(getString(R.string.label_delete)) { _, _ ->
+                viewModel.deleteDay(itineraryId, day.id)
+            }
+            .setNegativeButton(getString(R.string.label_cancel), null)
+            .show()
     }
 
     private fun showRemoveSpotDialog(itSpot: ItinerarySpot, dayId: Int) {

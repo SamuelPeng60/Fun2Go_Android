@@ -18,7 +18,8 @@ class ItineraryDayAdapter(
     private val onAddSpotClick: (ItineraryDay) -> Unit = {},
     private val onRemoveSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> },
     private val onDateClick: (ItineraryDay) -> Unit = {},
-    private val onSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> }
+    private val onSpotClick: (ItinerarySpot, dayId: Int) -> Unit = { _, _ -> },
+    private val onDeleteDayClick: (ItineraryDay) -> Unit = {}
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     sealed class Item {
@@ -158,6 +159,7 @@ class ItineraryDayAdapter(
         private val tvDayDate: TextView = view.findViewById(R.id.tvDayDate)
         private val tvSpotCount: TextView = view.findViewById(R.id.tvSpotCount)
         private val ivChevron: ImageView = view.findViewById(R.id.ivChevron)
+        private val btnDeleteDay: ImageButton = view.findViewById(R.id.btnDeleteDay)
 
         fun bind(item: Item.Header) {
             val day = item.day
@@ -174,6 +176,7 @@ class ItineraryDayAdapter(
             ivChevron.rotation = if (item.isExpanded) 90f else 0f
 
             tvDayDate.setOnClickListener { onDateClick(day) }
+            btnDeleteDay.setOnClickListener { onDeleteDayClick(day) }
 
             itemView.setOnClickListener {
                 if (day.id in expandedDayIds) expandedDayIds.remove(day.id)

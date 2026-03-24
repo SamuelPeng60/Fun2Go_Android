@@ -60,6 +60,17 @@
                 android:src="@android:drawable/ic_popup_sync"
                 android:contentDescription="Refresh User" />
 
+            <!-- 搜尋景點按鈕 -->
+            <ImageButton
+                android:id="@+id/btnSearch"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_toStartOf="@id/btnRefreshUser"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_search"
+                android:contentDescription="@string/hint_search_spots" />
+
         </RelativeLayout>
 
         <!-- 分類 Chips 橫向捲動列 -->
