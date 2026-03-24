@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -26,16 +27,35 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.adapter.ItineraryDayAdapter
 import com.funTrip.fun2go.ui.adapter.SpotPickerAdapter
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
+import kotlin.math.*
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
 
-class ItineraryDetailActivity : AppCompatActivity() {
+class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var viewModel: ItineraryViewModel
     private lateinit var toolbar: MaterialToolbar
+    private lateinit var tabLayout: TabLayout
+    private lateinit var listContainer: FrameLayout
+    private lateinit var mapContainer: FrameLayout
     private lateinit var pbLoading: ProgressBar
     private lateinit var tvEmptyDays: TextView
     private lateinit var rvDays: RecyclerView
@@ -46,6 +66,35 @@ class ItineraryDetailActivity : AppCompatActivity() {
     private var datePromptShown = false
     private var currentItinerary: Itinerary? = null
 
+    private var googleMap: GoogleMap? = null
+    private var mapFragmentAdded = false
+
+    // 每天對應的 Marker 顏色（Hue）與路徑連線顏色
+    private val dayMarkerHues = floatArrayOf(
+        BitmapDescriptorFactory.HUE_RED,
+        BitmapDescriptorFactory.HUE_BLUE,
+        BitmapDescriptorFactory.HUE_GREEN,
+        BitmapDescriptorFactory.HUE_ORANGE,
+        BitmapDescriptorFactory.HUE_VIOLET,
+        BitmapDescriptorFactory.HUE_CYAN,
+        BitmapDescriptorFactory.HUE_ROSE,
+        BitmapDescriptorFactory.HUE_MAGENTA,
+        BitmapDescriptorFactory.HUE_AZURE,
+        BitmapDescriptorFactory.HUE_YELLOW
+    )
+    private val dayPolylineColors = intArrayOf(
+        0xFFE53935.toInt(),
+        0xFF1E88E5.toInt(),
+        0xFF43A047.toInt(),
+        0xFFFB8C00.toInt(),
+        0xFF8E24AA.toInt(),
+        0xFF00ACC1.toInt(),
+        0xFFE91E63.toInt(),
+        0xFF8D6E63.toInt(),
+        0xFF039BE5.toInt(),
+        0xFFC0CA33.toInt()
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_itinerary_detail)
@@ -54,6 +103,9 @@ class ItineraryDetailActivity : AppCompatActivity() {
         val itineraryTitle = intent.getStringExtra("itinerary_title") ?: getString(R.string.default_itin_title)
 
         toolbar = findViewById(R.id.toolbar)
+        tabLayout = findViewById(R.id.tabLayout)
+        listContainer = findViewById(R.id.listContainer)
+        mapContainer = findViewById(R.id.mapContainer)
         pbLoading = findViewById(R.id.pbLoading)
         tvEmptyDays = findViewById(R.id.tvEmptyDays)
         rvDays = findViewById(R.id.rvDays)
@@ -63,6 +115,19 @@ class ItineraryDetailActivity : AppCompatActivity() {
             setDisplayHomeAsUpEnabled(true)
             title = itineraryTitle
         }
+
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.tab_list_view)))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.tab_map_view)))
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> showListMode()
+                    1 -> showMapMode()
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {}
+        })
 
         dayAdapter = ItineraryDayAdapter(
             onAddSpotClick = { day -> showSpotPickerSheet(day) },
@@ -157,6 +222,10 @@ class ItineraryDetailActivity : AppCompatActivity() {
                             rvDays.visibility = View.VISIBLE
                             dayAdapter.submitList(days)
                         }
+                        // 若目前在地圖模式，同步更新 markers
+                        if (mapContainer.visibility == View.VISIBLE) {
+                            googleMap?.let { updateMapMarkers(it) }
+                        }
                     } else {
                         tvEmptyDays.visibility = View.VISIBLE
                         rvDays.visibility = View.GONE
@@ -245,6 +314,168 @@ class ItineraryDetailActivity : AppCompatActivity() {
             }
         }
     }
+
+    // ── 地圖 / 列表 切換 ─────────────────────────────────────────────────────
+
+    private fun showListMode() {
+        listContainer.visibility = View.VISIBLE
+        mapContainer.visibility = View.GONE
+    }
+
+    private fun showMapMode() {
+        listContainer.visibility = View.GONE
+        mapContainer.visibility = View.VISIBLE
+        initMapIfNeeded()
+    }
+
+    private fun initMapIfNeeded() {
+        if (mapFragmentAdded) return
+        mapFragmentAdded = true
+        val mapFrag = SupportMapFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.mapContainer, mapFrag)
+            .commit()
+        mapFrag.getMapAsync(this)
+    }
+
+    override fun onMapReady(map: GoogleMap) {
+        googleMap = map
+        map.uiSettings.isZoomControlsEnabled = true
+        updateMapMarkers(map)
+    }
+
+    private fun updateMapMarkers(map: GoogleMap) {
+        val days = currentItinerary?.days ?: return
+        map.clear()
+        val boundsBuilder = LatLngBounds.Builder()
+        var hasAnyPoint = false
+
+        days.forEachIndexed { dayIndex, day ->
+            val lineColor = dayPolylineColors[dayIndex % dayPolylineColors.size]
+            val spots = day.spots ?: return@forEachIndexed
+            val validPoints = mutableListOf<LatLng>()
+
+            spots.forEachIndexed { spotIndex, itSpot ->
+                val lat = itSpot.spot_detail?.latitude?.toDoubleOrNull() ?: return@forEachIndexed
+                val lng = itSpot.spot_detail?.longitude?.toDoubleOrNull() ?: return@forEachIndexed
+                val latlng = LatLng(lat, lng)
+                validPoints.add(latlng)
+                boundsBuilder.include(latlng)
+                hasAnyPoint = true
+                map.addMarker(
+                    MarkerOptions()
+                        .position(latlng)
+                        .title(itSpot.spot_detail?.name ?: "")
+                        .snippet(getString(R.string.day_label, day.day_number))
+                        .icon(BitmapDescriptorFactory.fromBitmap(
+                            createNumberedMarker(spotIndex + 1, lineColor)
+                        ))
+                )
+            }
+
+            if (validPoints.size >= 2) {
+                map.addPolyline(
+                    PolylineOptions()
+                        .addAll(validPoints)
+                        .color(lineColor)
+                        .width(6f)
+                        .geodesic(true)
+                )
+                // 每段路線中點顯示行車時間
+                for (i in 0 until validPoints.size - 1) {
+                    val midLat = (validPoints[i].latitude + validPoints[i + 1].latitude) / 2
+                    val midLng = (validPoints[i].longitude + validPoints[i + 1].longitude) / 2
+                    val timeText = calcTravelTime(validPoints[i], validPoints[i + 1])
+                    map.addMarker(
+                        MarkerOptions()
+                            .position(LatLng(midLat, midLng))
+                            .icon(BitmapDescriptorFactory.fromBitmap(createTimeLabel(timeText)))
+                            .anchor(0.5f, 0.5f)
+                            .zIndex(0f)
+                    )
+                }
+            }
+        }
+
+        if (hasAnyPoint) {
+            mapContainer.post {
+                runCatching {
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 80))
+                }
+            }
+        }
+    }
+
+    /** 建立帶數字的圓形 Marker bitmap */
+    private fun createNumberedMarker(number: Int, color: Int): Bitmap {
+        val size = (48 * resources.displayMetrics.density).toInt()
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // 白色外框
+        paint.color = Color.WHITE
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        // 彩色填充
+        paint.color = color
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f - 3f * resources.displayMetrics.density, paint)
+
+        // 數字
+        paint.color = Color.WHITE
+        paint.textSize = size * 0.42f
+        paint.typeface = Typeface.DEFAULT_BOLD
+        paint.textAlign = Paint.Align.CENTER
+        val textY = size / 2f - (paint.descent() + paint.ascent()) / 2
+        canvas.drawText(number.toString(), size / 2f, textY, paint)
+
+        return bmp
+    }
+
+    /** 建立行車時間文字標籤 bitmap */
+    private fun createTimeLabel(text: String): Bitmap {
+        val density = resources.displayMetrics.density
+        val padding = (6 * density).toInt()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 11 * density
+            typeface = Typeface.DEFAULT_BOLD
+            color = Color.WHITE
+        }
+        val textWidth = paint.measureText(text)
+        val textHeight = paint.descent() - paint.ascent()
+        val w = (textWidth + padding * 2).toInt()
+        val h = (textHeight + padding * 1.5f).toInt()
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+
+        // 深色半透明背景
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC333333.toInt() }
+        val r = h / 2f
+        canvas.drawRoundRect(0f, 0f, w.toFloat(), h.toFloat(), r, r, bgPaint)
+
+        // 文字
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText(text, w / 2f, h / 2f - (paint.descent() + paint.ascent()) / 2, paint)
+
+        return bmp
+    }
+
+    /** Haversine 計算行車時間（與 ItineraryDayAdapter 邏輯一致） */
+    private fun calcTravelTime(a: LatLng, b: LatLng): String {
+        val R = 6371.0
+        val dLat = Math.toRadians(b.latitude - a.latitude)
+        val dLng = Math.toRadians(b.longitude - a.longitude)
+        val av = sin(dLat / 2).pow(2) +
+                cos(Math.toRadians(a.latitude)) * cos(Math.toRadians(b.latitude)) * sin(dLng / 2).pow(2)
+        val roadKm = R * 2 * atan2(sqrt(av), sqrt(1 - av)) * 1.3
+        val minutes = (roadKm / 25.0 * 60).toInt().coerceAtLeast(1)
+        return if (minutes < 60)
+            getString(R.string.format_travel_min, minutes)
+        else
+            getString(R.string.format_travel_hm, minutes / 60, minutes % 60)
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
 
     private fun setupDragDrop() {
         val callback = object : ItemTouchHelper.Callback() {

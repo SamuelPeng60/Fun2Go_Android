@@ -20,6 +20,10 @@
     <string name="label_confirm_booking">Confirm Booking</string>
     <string name="label_create_itinerary">Create Itinerary</string>
     <string name="label_go_back">Back</string>
+    <string name="tab_list_view">List</string>
+    <string name="tab_map_view">Map</string>
+    <string name="format_travel_min">~%d min</string>
+    <string name="format_travel_hm">~%dh %dm</string>
 
     <!-- ── 主畫面 / 遊客 ──────────────────────────────────── -->
     <string name="label_guest">Guest</string>

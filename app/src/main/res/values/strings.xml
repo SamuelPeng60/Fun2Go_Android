@@ -49,6 +49,10 @@
     <string name="label_confirm_booking">確認預訂</string>
     <string name="label_create_itinerary">建立行程</string>
     <string name="label_go_back">返回</string>
+    <string name="tab_list_view">列表</string>
+    <string name="tab_map_view">地圖</string>
+    <string name="format_travel_min">約 %d 分鐘</string>
+    <string name="format_travel_hm">約 %dh %dm</string>
 
     <!-- ── 主畫面 / 遊客 ──────────────────────────────────── -->
     <string name="label_guest">遊客</string>
