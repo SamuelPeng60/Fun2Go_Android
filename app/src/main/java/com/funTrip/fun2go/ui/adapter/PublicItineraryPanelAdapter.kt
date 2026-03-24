@@ -3,8 +3,10 @@ package com.funTrip.fun2go.ui.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
 import com.google.android.material.button.MaterialButton
@@ -34,6 +36,7 @@ class PublicItineraryPanelAdapter(
     override fun getItemCount() = items.size
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val ivCover: ImageView = view.findViewById(R.id.ivCover)
         private val tvTitle: TextView = view.findViewById(R.id.tvTitle)
         private val tvDestination: TextView = view.findViewById(R.id.tvDestination)
         private val tvDays: TextView = view.findViewById(R.id.tvDays)
@@ -41,6 +44,11 @@ class PublicItineraryPanelAdapter(
         private val btnCopy: MaterialButton = view.findViewById(R.id.btnCopy)
 
         fun bind(itinerary: Itinerary) {
+            ivCover.load(itinerary.coverImageUrl) {
+                crossfade(true)
+                placeholder(android.R.color.darker_gray)
+                error(android.R.color.darker_gray)
+            }
             tvTitle.text = itinerary.title
 
             val dest = itinerary.destination?.takeIf { it.isNotEmpty() }

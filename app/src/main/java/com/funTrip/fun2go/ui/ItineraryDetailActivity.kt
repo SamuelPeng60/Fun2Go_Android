@@ -462,12 +462,12 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
     /** Haversine 計算行車時間（與 ItineraryDayAdapter 邏輯一致） */
     private fun calcTravelTime(a: LatLng, b: LatLng): String {
-        val R = 6371.0
+        val earthR = 6371.0
         val dLat = Math.toRadians(b.latitude - a.latitude)
         val dLng = Math.toRadians(b.longitude - a.longitude)
         val av = sin(dLat / 2).pow(2) +
                 cos(Math.toRadians(a.latitude)) * cos(Math.toRadians(b.latitude)) * sin(dLng / 2).pow(2)
-        val roadKm = R * 2 * atan2(sqrt(av), sqrt(1 - av)) * 1.3
+        val roadKm = earthR * 2 * atan2(sqrt(av), sqrt(1 - av)) * 1.3
         val minutes = (roadKm / 25.0 * 60).toInt().coerceAtLeast(1)
         return if (minutes < 60)
             getString(R.string.format_travel_min, minutes)

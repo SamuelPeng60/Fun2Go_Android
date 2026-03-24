@@ -13,10 +13,12 @@
         android:layout_height="match_parent"
         android:orientation="horizontal">
 
-        <!-- 左側灰色圖片佔位 -->
-        <View
+        <!-- 左側封面圖 -->
+        <ImageView
+            android:id="@+id/ivCover"
             android:layout_width="80dp"
             android:layout_height="match_parent"
+            android:scaleType="centerCrop"
             android:background="#E0E0E0" />
 
         <!-- 右側資訊區 -->

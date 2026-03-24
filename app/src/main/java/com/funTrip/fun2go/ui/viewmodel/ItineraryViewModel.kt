@@ -273,7 +273,25 @@ class ItineraryViewModel(application: Application) : AndroidViewModel(applicatio
     fun fetchUserItineraries(userId: Int) {
         _userItineraries.value = NetworkResult.Loading()
         viewModelScope.launch {
-            _userItineraries.value = repository.getUserItineraries(userId)
+            val result = repository.getUserItineraries(userId)
+            _userItineraries.value = result
+            // 若有行程缺少封面圖，背景補抓 detail 以獲得 cover_image_url
+            if (result is NetworkResult.Success) {
+                val list = result.data ?: return@launch
+                val needEnrich = list.filter { it.coverImageUrl.isNullOrEmpty() }
+                if (needEnrich.isEmpty()) return@launch
+                val enriched = list.toMutableList()
+                var changed = false
+                for (itin in needEnrich) {
+                    val detail = repository.getItineraryDetail(itin.id)
+                    val url = (detail as? NetworkResult.Success)?.data?.coverImageUrl
+                    if (!url.isNullOrEmpty()) {
+                        val idx = enriched.indexOfFirst { it.id == itin.id }
+                        if (idx >= 0) { enriched[idx] = enriched[idx].copy(coverImageUrl = url); changed = true }
+                    }
+                }
+                if (changed) _userItineraries.postValue(NetworkResult.Success(enriched))
+            }
         }
     }
 
