@@ -40,6 +40,7 @@ import com.funTrip.fun2go.data.remote.NetworkResult
 import com.funTrip.fun2go.ui.ItineraryDetailActivity
 import com.funTrip.fun2go.ui.ItineraryListActivity
 import com.funTrip.fun2go.ui.PublicItineraryListActivity
+import com.funTrip.fun2go.ui.UserProfileActivity
 import com.funTrip.fun2go.ui.adapter.PublicItineraryPanelAdapter
 import com.funTrip.fun2go.ui.viewmodel.MainViewModel
 import com.funTrip.fun2go.ui.viewmodel.ItineraryViewModel
@@ -211,6 +212,11 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     copyHandled = false
                     itinViewModel.copyItinerary(itin.id)
                 }
+            },
+            onAuthorClick = { itin ->
+                startActivity(Intent(this, UserProfileActivity::class.java).apply {
+                    putExtra("user_id", itin.author_id)
+                })
             }
         )
 
