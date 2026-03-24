@@ -260,7 +260,7 @@
 
     </LinearLayout>
 
-    <!-- 建立行程 FAB -->
+    <!-- 新增景點 FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabCreateItinerary"
         android:layout_width="wrap_content"
@@ -269,7 +269,7 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="246dp"
         android:src="@android:drawable/ic_input_add"
-        android:contentDescription="@string/label_create_itinerary"
+        android:contentDescription="@string/label_add_spot"
         android:elevation="6dp"
         app:backgroundTint="#2196F3"
         app:tint="@android:color/white" />

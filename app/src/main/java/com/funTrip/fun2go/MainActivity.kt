@@ -219,10 +219,14 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             adapter = panelAdapter
         }
 
-        // 建立行程 FAB
+        // 新增景點 FAB
         findViewById<FloatingActionButton>(R.id.fabCreateItinerary).setOnClickListener {
-            requireLogin(getString(R.string.msg_login_for_my_itin)) {
-                showCreateItinerarySheet()
+            requireLogin(getString(R.string.msg_login_to_add_spot)) {
+                val center = if (::googleMap.isInitialized)
+                    googleMap.cameraPosition.target
+                else
+                    com.google.android.gms.maps.model.LatLng(25.0330, 121.5654)
+                showCreateSpotSheet(center)
             }
         }
 

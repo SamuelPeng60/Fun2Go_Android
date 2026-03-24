@@ -22,6 +22,8 @@
     <string name="label_go_back">Back</string>
     <string name="tab_list_view">List</string>
     <string name="tab_map_view">Map</string>
+    <string name="label_add_spot">Add Spot</string>
+    <string name="msg_login_to_add_spot">Please log in to add a spot</string>
     <string name="format_travel_min">~%d min</string>
     <string name="format_travel_hm">~%dh %dm</string>
 

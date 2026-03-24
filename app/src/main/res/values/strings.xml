@@ -51,6 +51,8 @@
     <string name="label_go_back">返回</string>
     <string name="tab_list_view">列表</string>
     <string name="tab_map_view">地圖</string>
+    <string name="label_add_spot">新增景點</string>
+    <string name="msg_login_to_add_spot">請先登入以新增景點</string>
     <string name="format_travel_min">約 %d 分鐘</string>
     <string name="format_travel_hm">約 %dh %dm</string>
 
