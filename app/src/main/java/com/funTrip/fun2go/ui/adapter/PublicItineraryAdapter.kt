@@ -1,6 +1,7 @@
 package com.funTrip.fun2go.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -92,9 +93,14 @@ class PublicItineraryAdapter(
             tvAuthor.text = if (!itinerary.authorName.isNullOrEmpty()) "by ${itinerary.authorName}" else ""
             tvAuthor.visibility = if (!itinerary.authorName.isNullOrEmpty()) View.VISIBLE else View.GONE
             if (onAuthorClick != null && !itinerary.authorName.isNullOrEmpty()) {
-                llAuthor.setOnClickListener { onAuthorClick.invoke(itinerary) }
+                llAuthor.isClickable = true
+                llAuthor.setOnTouchListener { _, event ->
+                    if (event.action == MotionEvent.ACTION_UP) onAuthorClick.invoke(itinerary)
+                    true
+                }
             } else {
-                llAuthor.setOnClickListener(null)
+                llAuthor.isClickable = false
+                llAuthor.setOnTouchListener(null)
             }
 
             tvCopyCount.text = if (itinerary.copy_count > 0)
