@@ -47,9 +47,18 @@ class VehicleListActivity : AppCompatActivity() {
 
     private var currentType: String? = null
 
+    // 從行程詳情頁帶入的資訊（用於預填包車表單）
+    private var fromItineraryId: Int = -1
+    private var fromItineraryDays: Int = 0
+    private var fromItineraryDestination: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_vehicle_list)
+
+        fromItineraryId = intent.getIntExtra("from_itinerary_id", -1)
+        fromItineraryDays = intent.getIntExtra("from_itinerary_days", 0)
+        fromItineraryDestination = intent.getStringExtra("from_itinerary_destination")?.ifEmpty { null }
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -229,6 +238,10 @@ class VehicleListActivity : AppCompatActivity() {
         val btnConfirm        = view.findViewById<MaterialButton>(R.id.btnConfirmBooking)
         val btnCancel         = view.findViewById<MaterialButton>(R.id.btnCancelBooking)
 
+        // 若從行程詳情頁帶入，預填天數與上車地點
+        if (fromItineraryDays > 0) etDays.setText(fromItineraryDays.toString())
+        if (!fromItineraryDestination.isNullOrEmpty()) etPickupLocation.setText(fromItineraryDestination)
+
         // 天數變動 → 即時更新預估金額
         etDays.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -296,6 +309,7 @@ class VehicleListActivity : AppCompatActivity() {
             btnCancel.isEnabled  = false
 
             val req = CreateOrderRequest(
+                itinerary_id = if (fromItineraryId > 0) fromItineraryId else null,
                 charter = CharterRequest(
                     vehicle_id       = vehicle.id,
                     pickup_location  = pickup,

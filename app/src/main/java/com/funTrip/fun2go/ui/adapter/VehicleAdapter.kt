@@ -59,7 +59,9 @@ class VehicleAdapter(
                 tvAvailable.visibility = View.VISIBLE
             }
 
-            ivVehicle.load(vehicle.imageUrl) {
+            val imageUrl = vehicle.imageUrl?.replace("http://", "https://")
+            ivVehicle.load(imageUrl) {
+                crossfade(true)
                 placeholder(android.R.color.darker_gray)
                 error(android.R.color.darker_gray)
             }

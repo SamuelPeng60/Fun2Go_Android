@@ -140,6 +140,7 @@
     <string name="default_itin_title">Itinerary Detail</string>
     <string name="empty_days">No days added yet</string>
     <string name="msg_load_detail_failed">Load failed: %s</string>
+    <string name="menu_charter_itin">Book Charter</string>
     <string name="menu_publish_itin">Publish</string>
     <string name="menu_unpublish_itin">Unpublish</string>
     <string name="title_publish_itin_confirm">Publish Itinerary</string>

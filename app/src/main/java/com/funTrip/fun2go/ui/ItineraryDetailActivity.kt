@@ -1,6 +1,7 @@
 package com.funTrip.fun2go.ui
 
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.app.TimePickerDialog
 import android.os.Bundle
 import android.view.Menu
@@ -48,6 +49,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.textfield.TextInputEditText
+import com.funTrip.fun2go.ui.VehicleListActivity
 
 class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -149,17 +151,21 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        val itinerary = currentItinerary
+        val itinerary = currentItinerary ?: return true
         val currentUserId = viewModel.currentUser?.id ?: 0
-        // 只有行程擁有者才顯示發佈按鈕
-        if (itinerary != null && currentUserId > 0 && itinerary.author_id == currentUserId) {
-            menuInflater.inflate(R.menu.menu_itinerary_detail, menu)
-            val publishItem = menu.findItem(R.id.action_publish_itinerary)
-            if (itinerary.is_public) {
-                publishItem.title = getString(R.string.menu_unpublish_itin)
-            } else {
-                publishItem.title = getString(R.string.menu_publish_itin)
-            }
+        menuInflater.inflate(R.menu.menu_itinerary_detail, menu)
+
+        // 包車：登入用戶皆可見
+        menu.findItem(R.id.action_charter_vehicle)?.isVisible = currentUserId > 0
+
+        // 發佈：只有行程擁有者
+        val publishItem = menu.findItem(R.id.action_publish_itinerary)
+        if (currentUserId > 0 && itinerary.author_id == currentUserId) {
+            publishItem?.isVisible = true
+            publishItem?.title = if (itinerary.is_public)
+                getString(R.string.menu_unpublish_itin) else getString(R.string.menu_publish_itin)
+        } else {
+            publishItem?.isVisible = false
         }
         return true
     }
@@ -167,6 +173,15 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> { finish(); true }
+            R.id.action_charter_vehicle -> {
+                val itin = currentItinerary ?: return true
+                startActivity(Intent(this, VehicleListActivity::class.java).apply {
+                    putExtra("from_itinerary_id", itin.id)
+                    putExtra("from_itinerary_days", itin.total_days)
+                    putExtra("from_itinerary_destination", itin.destination ?: "")
+                })
+                true
+            }
             R.id.action_publish_itinerary -> {
                 val itinerary = currentItinerary ?: return true
                 if (itinerary.is_public) {

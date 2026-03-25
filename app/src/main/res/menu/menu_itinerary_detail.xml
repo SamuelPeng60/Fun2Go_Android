@@ -3,6 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_charter_vehicle"
+        android:icon="@drawable/ic_car"
+        android:title="@string/menu_charter_itin"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_publish_itinerary"
         android:icon="@drawable/ic_public"
         android:title="@string/menu_publish_itin"

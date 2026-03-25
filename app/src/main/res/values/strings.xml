@@ -169,6 +169,7 @@
     <string name="default_itin_title">行程詳情</string>
     <string name="empty_days">目前尚無行程天數</string>
     <string name="msg_load_detail_failed">載入失敗：%s</string>
+    <string name="menu_charter_itin">預約包車</string>
     <string name="menu_publish_itin">發佈行程</string>
     <string name="menu_unpublish_itin">取消發佈</string>
     <string name="title_publish_itin_confirm">發佈行程</string>
