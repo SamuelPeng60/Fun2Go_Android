@@ -48,6 +48,7 @@ class UserProfileActivity : AppCompatActivity() {
                 startActivity(Intent(this, ItineraryDetailActivity::class.java).apply {
                     putExtra("itinerary_id", itinerary.id)
                     putExtra("itinerary_title", itinerary.title)
+                    putExtra("cover_image_url", itinerary.coverImageUrl)
                 })
             },
             onCopyClick = { /* 不在個人頁提供複製 */ }

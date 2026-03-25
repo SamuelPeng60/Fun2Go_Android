@@ -76,6 +76,7 @@ class ItineraryListActivity : AppCompatActivity() {
                 val intent = Intent(this, ItineraryDetailActivity::class.java)
                 intent.putExtra("itinerary_id", itinerary.id)
                 intent.putExtra("itinerary_title", itinerary.title)
+                intent.putExtra("cover_image_url", itinerary.coverImageUrl)
                 startActivity(intent)
             },
             onEditClick = { itinerary ->

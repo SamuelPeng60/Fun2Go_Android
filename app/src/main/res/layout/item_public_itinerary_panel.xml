@@ -18,8 +18,7 @@
             android:id="@+id/ivCover"
             android:layout_width="80dp"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:background="#E0E0E0" />
+            android:scaleType="centerCrop" />
 
         <!-- 右側資訊區 -->
         <LinearLayout
@@ -27,7 +26,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:padding="6dp">
 
             <TextView
                 android:id="@+id/tvTitle"
@@ -67,8 +66,8 @@
                     android:id="@+id/tvAuthor"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
                     android:paddingStart="4dp"
                     android:textSize="10sp"
                     android:textColor="#AAAAAA"

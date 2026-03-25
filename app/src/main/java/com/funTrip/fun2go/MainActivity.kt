@@ -203,6 +203,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 startActivity(Intent(this, ItineraryDetailActivity::class.java).apply {
                     putExtra("itinerary_id", itin.id)
                     putExtra("itinerary_title", itin.title)
+                    putExtra("cover_image_url", itin.coverImageUrl)
                 })
             },
             onCopyClick = { itin ->
@@ -1449,6 +1450,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val intent = Intent(this, ItineraryDetailActivity::class.java)
         intent.putExtra("itinerary_id", itinerary.id)
         intent.putExtra("itinerary_title", itinerary.title)
+        intent.putExtra("cover_image_url", itinerary.coverImageUrl)
         startActivity(intent)
     }
 

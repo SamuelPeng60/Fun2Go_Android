@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import coil.transform.RoundedCornersTransformation
 import com.funTrip.fun2go.R
 import com.funTrip.fun2go.data.model.Itinerary
 import com.google.android.material.button.MaterialButton
@@ -45,10 +46,17 @@ class PublicItineraryPanelAdapter(
         private val btnCopy: MaterialButton = view.findViewById(R.id.btnCopy)
 
         fun bind(itinerary: Itinerary) {
-            ivCover.load(itinerary.coverImageUrl) {
+            val cornerPx = 10f * itemView.context.resources.displayMetrics.density
+            ivCover.load(itinerary.coverImageUrl?.replace("http://", "https://")) {
                 crossfade(true)
                 placeholder(android.R.color.darker_gray)
                 error(android.R.color.darker_gray)
+                transformations(RoundedCornersTransformation(
+                    topLeft = 0f,
+                    topRight = cornerPx,
+                    bottomLeft = 0f,
+                    bottomRight = cornerPx
+                ))
             }
             tvTitle.text = itinerary.title
 

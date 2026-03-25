@@ -8,9 +8,11 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import coil.load
 import java.util.Calendar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -68,6 +70,8 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
     private var datePromptShown = false
     private var currentItinerary: Itinerary? = null
 
+    private lateinit var ivCoverHeader: ImageView
+
     private var googleMap: GoogleMap? = null
     private var mapFragmentAdded = false
 
@@ -104,6 +108,7 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         itineraryId = intent.getIntExtra("itinerary_id", -1)
         val itineraryTitle = intent.getStringExtra("itinerary_title") ?: getString(R.string.default_itin_title)
 
+        ivCoverHeader = findViewById(R.id.ivCoverHeader)
         toolbar = findViewById(R.id.toolbar)
         tabLayout = findViewById(R.id.tabLayout)
         listContainer = findViewById(R.id.listContainer)
@@ -141,6 +146,12 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
         rvDays.layoutManager = LinearLayoutManager(this)
         rvDays.adapter = dayAdapter
         setupDragDrop()
+
+        // 若呼叫端有帶封面 URL，先行載入（detail 回來後會覆蓋）
+        val initialCoverUrl = intent.getStringExtra("cover_image_url")
+        if (!initialCoverUrl.isNullOrEmpty()) {
+            ivCoverHeader.load(initialCoverUrl) { crossfade(true) }
+        }
 
         viewModel = ViewModelProvider(this)[ItineraryViewModel::class.java]
         setupObservers()
@@ -224,6 +235,11 @@ class ItineraryDetailActivity : AppCompatActivity(), OnMapReadyCallback {
                         currentItinerary = itinerary
                         invalidateOptionsMenu()
                         supportActionBar?.title = itinerary.title
+                        // 載入封面圖
+                        val coverUrl = itinerary.coverImageUrl?.replace("http://", "https://")
+                        if (!coverUrl.isNullOrEmpty()) {
+                            ivCoverHeader.load(coverUrl) { crossfade(true) }
+                        }
                         val days = itinerary.days ?: emptyList()
                         // 偵測複製過來但尚未設定日期的行程（全部天數 date 為 null）
                         if (!datePromptShown && days.isNotEmpty() && days.all { it.date.isNullOrBlank() }) {

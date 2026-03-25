@@ -186,6 +186,7 @@ class PublicItineraryListActivity : AppCompatActivity() {
             Intent(this, ItineraryDetailActivity::class.java).apply {
                 putExtra("itinerary_id", itinerary.id)
                 putExtra("itinerary_title", itinerary.title)
+                putExtra("cover_image_url", itinerary.coverImageUrl)
             }
         )
     }

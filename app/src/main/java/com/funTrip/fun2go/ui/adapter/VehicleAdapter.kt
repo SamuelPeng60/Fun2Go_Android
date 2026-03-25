@@ -37,6 +37,7 @@ class VehicleAdapter(
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val ivVehicle: ImageView  = view.findViewById(R.id.ivVehicle)
+        private val tvImageError: TextView = view.findViewById(R.id.tvImageError)
         private val tvVehicleName: TextView = view.findViewById(R.id.tvVehicleName)
         private val tvType: TextView      = view.findViewById(R.id.tvType)
         private val tvCapacity: TextView  = view.findViewById(R.id.tvCapacity)
@@ -59,11 +60,16 @@ class VehicleAdapter(
                 tvAvailable.visibility = View.VISIBLE
             }
 
+            tvImageError.visibility = View.GONE
             val imageUrl = vehicle.imageUrl?.replace("http://", "https://")
             ivVehicle.load(imageUrl) {
                 crossfade(true)
                 placeholder(android.R.color.darker_gray)
                 error(android.R.color.darker_gray)
+                listener(
+                    onSuccess = { _, _ -> tvImageError.visibility = View.GONE },
+                    onError   = { _, _ -> tvImageError.visibility = View.VISIBLE }
+                )
             }
 
             itemView.setOnClickListener { onItemClick(vehicle) }

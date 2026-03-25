@@ -138,6 +138,7 @@
                     android:layout_height="110dp"
                     android:paddingStart="4dp"
                     android:paddingEnd="4dp"
+                    android:paddingBottom="6dp"
                     android:clipToPadding="false" />
 
             </LinearLayout>
