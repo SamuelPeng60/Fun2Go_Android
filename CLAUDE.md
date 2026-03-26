@@ -419,26 +419,58 @@ sealed class SavedListItem {
 
 ---
 
+### 23. 行程連結包車 + UI 改善 + 頭像刪除（v3.0，2026-03-26）
+
+#### 行程連結包車
+- **`menu_itinerary_detail.xml`** 新增 `action_charter_vehicle` item（`ic_car` icon，`showAsAction="ifRoom"`）
+- **`ItineraryDetailActivity.onCreateOptionsMenu`**：已登入的用戶顯示「預約包車」menu item
+- **`ItineraryDetailActivity.onOptionsItemSelected`**：點擊 → `startActivity(VehicleListActivity)` 並帶入 `from_itinerary_id`、`from_itinerary_days`、`from_itinerary_destination`
+- **`VehicleListActivity`**：讀取行程 extras；`showBookingSheet()` 時自動預填 `etDays`（天數）與 `etPickupLocation`（目的地）；`CreateOrderRequest` 帶入 `itinerary_id`
+- i18n 新增：`menu_charter_itin`（「預約包車」/ "Book Charter"）
+
+#### ItineraryDetailActivity 封面圖大圖 Header
+- **`activity_itinerary_detail.xml`** 頂部改為 200dp `FrameLayout`：
+  - `ivCoverHeader`（ImageView，`scaleType=centerCrop`，背景 `#CCCCCC`）
+  - 漸層遮罩 View（`bg_header_gradient.xml`：黑色由上到下漸淡）
+  - 透明 `MaterialToolbar`（`titleTextColor`、`navigationIconTint` 均為白色）
+- **`ItineraryDetailActivity`**：`onCreate` 立即從 Intent extra `cover_image_url` 載入封面圖；`itineraryDetail` Success observer 再用 API 回傳的 `coverImageUrl` 更新（http→https）
+- **所有跳轉至 `ItineraryDetailActivity` 的呼叫補傳 `cover_image_url`**：`ItineraryListActivity`、`PublicItineraryListActivity`、`MainActivity`（Panel + navigateToItineraryDetail）、`UserProfileActivity`
+- 新增 drawable：`bg_header_gradient.xml`（angle=270，黑色→透明）
+
+#### 首頁 Panel 縮圖圓角修復
+- **`PublicItineraryPanelAdapter`**：Coil 載入封面圖加 `RoundedCornersTransformation(topLeft=0, topRight=cornerPx, bottomLeft=0, bottomRight=cornerPx)`（10f × density）；URL http→https 修正
+- **`item_public_itinerary_panel.xml`**：移除 `ivCover` 的 `android:background`（避免透明圓角露出灰底）；縮小內部 padding 8dp → 6dp
+
+#### Panel 卡片陰影完整顯示
+- **`activity_main.xml`** `rvPublicItinPanel`：高度維持 110dp，新增 `android:paddingBottom="6dp"` + 已有 `android:clipToPadding="false"`，讓卡片底部陰影在 RecyclerView 邊界內完整渲染
+
+#### 車輛圖片修復
+- **`VehicleAdapter`**：URL http→https 修正；Coil `listener(onSuccess, onError)` 控制 `tvImageError`（`View.GONE` / `View.VISIBLE`）
+- **`item_vehicle.xml`**：`ivVehicle` 包在 `FrameLayout`（160dp）內，新增 `tvImageError` 居中 overlay（初始 GONE）
+
+#### 個人頁刪除頭像（還原 Google 頭像）
+- **`bottom_sheet_profile.xml`**：「更換頭像」按鈕旁新增「刪除圖片」`MaterialButton`（灰色文字），兩者放在水平 `LinearLayout`
+- **`MainActivity.showProfileBottomSheet()`**：`btnDeleteAvatar` 點擊 →
+  - 從 `GoogleSignIn.getLastSignedInAccount(this)?.photoUrl?.toString()` 取得 Google 帳號頭像 URL
+  - 有 URL：設 `pendingAvatarUrl = googlePhotoUrl`，立即更新預覽，Toast 提示「按儲存修改生效」
+  - 無 URL：Toast「Google 帳號上沒有頭像可還原」
+  - 實際儲存仍透過「儲存修改」按鈕觸發（呼叫 `updateUser` with `avatar_url = googlePhotoUrl`）
+- i18n 新增：`label_delete_avatar`、`msg_reset_to_google_avatar`、`msg_no_google_avatar`（中英文）
+
+---
+
 ## 已知待完成功能
 
 對照 iOS spec（`ios-app-spec.md`）整理，以下功能 iOS 已有、Android 尚未實作。
 
-### 優先實作（下次開始）
-
-1. **行程連結包車（ItineraryCharterSheet）**
-   - `ItineraryDetailActivity` toolbar / FAB 新增「預約包車」入口
-   - 帶入行程天數與目的地自動預填上下車地點
-   - 流程：選車輛 → 預填表單（`VehicleListActivity` + `showBookingSheet`）→ 確認
-   - iOS ref：`ItineraryCharterSheet`（Phase 1 選車 → Phase 2 預約）
-
 ### 次要實作
 
-2. **退款（Refund）**
+1. **退款（Refund）**
    - 訂單狀態 `confirmed` 時顯示「申請退款」按鈕
    - API：`POST /api/orders/{id}/refund`
    - iOS ref：`OrderDetailView` confirmed → 「申請退款」red bordered button
 
-3. **PublicItineraryListActivity 入口**
+2. **PublicItineraryListActivity 入口**
    - 目前無法從 app 導航到 `PublicItineraryListActivity`（Activity 存在但未連接）
    - 建議：首頁 Panel 標題列「公開行程」旁加「查看全部」→ `PublicItineraryListActivity`
 
